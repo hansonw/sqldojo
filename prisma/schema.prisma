@@ -1,0 +1,45 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_MIGRATE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["dataproxy"]
+}
+
+model User {
+  id            String       @default(cuid()) @id
+  name          String?
+  email         String?   @unique
+  createdAt     DateTime  @default(now()) @map(name: "created_at")
+  updatedAt     DateTime  @updatedAt @map(name: "updated_at")
+  competitions  Competition[]
+  @@map(name: "users")
+}
+
+model Competition {
+  id            String       @default(cuid()) @id
+  name          String
+  startDate     DateTime
+  endDate       DateTime
+  problems      Problem[]
+  registeredUsers   User[]
+}
+
+enum ProblemDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model Problem {
+  id              String  @id
+  name            String
+  dbName          String  // DB name in sqldojo-contest
+  description     String  // (supports markdown)
+  difficulty      ProblemDifficulty
+  points          Int
+  competition     Competition @relation(fields: [competitionId], references: [id])
+  competitionId   String
+}
