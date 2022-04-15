@@ -23,7 +23,7 @@ export default async function handler(req, res) {
         .status(200)
         .json({ rows: result.rows, columns: result.fields.map((x) => x.name) });
     } catch (e) {
-      res.status(500).json({ error: String(e) });
+      res.status(200).json({ error: String(e) });
     }
     await client.end();
   } else {

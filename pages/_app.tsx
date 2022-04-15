@@ -1,6 +1,7 @@
 import { AppProps } from "next/app";
 import { MantineProvider } from "@mantine/core";
-import { AppShell, Navbar, Header } from "@mantine/core";
+
+import "../styles.css";
 
 const App = ({ Component, pageProps }: AppProps) => {
   return (

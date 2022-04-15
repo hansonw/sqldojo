@@ -12,7 +12,7 @@ import {
   Card,
 } from "@mantine/core";
 
-export const getStaticProps: GetStaticProps = async () => {
+export const getServerSideProps: GetStaticProps = async () => {
   const competitions = (await prisma.competition.findMany({})).map((c) => ({
     ...c,
     startDate: String(c.startDate),
