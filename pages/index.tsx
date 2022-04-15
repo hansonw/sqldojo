@@ -1,57 +1,84 @@
-import React from "react"
-import { GetStaticProps } from "next"
-import Layout from "../components/Layout"
-import Post, { PostProps } from "../components/Post"
+import React from "react";
+import { GetStaticProps } from "next";
+import prisma from "../lib/prisma";
+import { Competition as CompetitionModel } from "@prisma/client";
+import {
+  AppShell,
+  Header,
+  Text,
+  useMantineTheme,
+  Title,
+  Stack,
+  Card,
+} from "@mantine/core";
 
 export const getStaticProps: GetStaticProps = async () => {
-  const feed = [
-    {
-      id: "1",
-      title: "Prisma is the perfect ORM for Next.js",
-      content: "[Prisma](https://github.com/prisma/prisma) and Next.js go _great_ together!",
-      published: false,
-      author: {
-        name: "Nikolas Burk",
-        email: "burk@prisma.io",
-      },
-    },
-  ]
-  return { props: { feed } }
-}
+  const competitions = (await prisma.competition.findMany({})).map((c) => ({
+    ...c,
+    startDate: String(c.startDate),
+    endDate: String(c.endDate),
+  }));
+  return { props: { competitions } };
+};
 
 type Props = {
-  feed: PostProps[]
-}
+  competitions: CompetitionModel[];
+};
 
-const Blog: React.FC<Props> = (props) => {
+const Competitions: React.FC<Props> = (props) => {
+  const theme = useMantineTheme();
+  const secondaryColor =
+    theme.colorScheme === "dark" ? theme.colors.dark[1] : theme.colors.gray[7];
+
   return (
-    <Layout>
-      <div className="page">
-        <h1>Public Feed</h1>
-        <main>
-          {props.feed.map((post) => (
-            <div key={post.id} className="post">
-              <Post post={post} />
-            </div>
-          ))}
-        </main>
-      </div>
-      <style jsx>{`
-        .post {
-          background: white;
-          transition: box-shadow 0.1s ease-in;
-        }
+    <AppShell
+      styles={{
+        main: {
+          background:
+            theme.colorScheme === "dark"
+              ? theme.colors.dark[8]
+              : theme.colors.gray[0],
+        },
+      }}
+      navbarOffsetBreakpoint="sm"
+      asideOffsetBreakpoint="sm"
+      fixed
+      // footer={
+      //   <Footer height={60} p="md">
+      //     Application footer
+      //   </Footer>
+      // }
+      header={
+        <Header height={70} p="md">
+          <div
+            style={{ display: "flex", alignItems: "center", height: "100%" }}
+          >
+            <Title>SQL Dojo</Title>
+          </div>
+        </Header>
+      }
+    >
+      <Stack>
+        {props.competitions.map((competition) => (
+          <a
+            key={competition.id}
+            href={`/c/${competition.id}`}
+            style={{ textDecoration: "none" }}
+          >
+            <Card shadow="sm" p="lg">
+              <Text weight={500}>{competition.name}</Text>
+              <Text
+                size="sm"
+                style={{ color: secondaryColor, lineHeight: 1.5 }}
+              >
+                Active now!
+              </Text>
+            </Card>
+          </a>
+        ))}
+      </Stack>
+    </AppShell>
+  );
+};
 
-        .post:hover {
-          box-shadow: 1px 1px 3px #aaa;
-        }
-
-        .post + .post {
-          margin-top: 2rem;
-        }
-      `}</style>
-    </Layout>
-  )
-}
-
-export default Blog
+export default Competitions;
