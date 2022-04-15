@@ -19,9 +19,11 @@ export default async function handler(req, res) {
     try {
       await client.connect();
       const result = await client.query(body.toString("utf8"));
-      res
-        .status(200)
-        .json({ rows: result.rows, columns: result.fields.map((x) => x.name) });
+      res.status(200).json({
+        rows: result.rows.slice(0, 100),
+        columns: result.fields.map((x) => x.name),
+        count: result.rows.length,
+      });
     } catch (e) {
       res.status(200).json({ error: String(e) });
     }

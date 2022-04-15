@@ -42,7 +42,7 @@ const Competition: React.FC<{ name: string; problems: Problem[] }> = ({
   problems,
 }) => {
   const theme = useMantineTheme();
-  const [problem, setProblem] = React.useState(problems[0]);
+  const [selectedProblem, setProblem] = React.useState(problems[0]);
   return (
     <AppShell
       styles={{
@@ -82,7 +82,10 @@ const Competition: React.FC<{ name: string; problems: Problem[] }> = ({
                 },
               })}
             >
-              <Text size="sm">
+              <Text
+                size="sm"
+                weight={selectedProblem.id === problem.id ? 600 : null}
+              >
                 [{problem.difficulty}] {problem.name}
               </Text>
             </UnstyledButton>
@@ -101,7 +104,7 @@ const Competition: React.FC<{ name: string; problems: Problem[] }> = ({
         </Header>
       }
     >
-      <Problem problem={problem} />
+      <Problem problem={selectedProblem} />
     </AppShell>
   );
 };
