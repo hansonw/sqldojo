@@ -6,7 +6,7 @@ import "../styles.css";
 
 const App = ({ Component, pageProps }: AppProps) => {
   return (
-    <MantineProvider>
+    <MantineProvider withNormalizeCSS withGlobalStyles>
       <NextNProgress options={{ showSpinner: false }} />
       <Component {...pageProps} />
     </MantineProvider>
