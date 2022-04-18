@@ -15,6 +15,8 @@ export default async function handler(req, res) {
       user: process.env.CONTESTANT_USER,
       password: process.env.CONTESTANT_PWD,
       database: req.query.database,
+      statement_timeout: 5000,
+      query_timeout: 5000,
     });
     try {
       await client.connect();

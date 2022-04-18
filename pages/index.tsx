@@ -10,10 +10,18 @@ import {
   Title,
   Stack,
   Card,
+  UnstyledButton,
 } from "@mantine/core";
+import Router from "next/router";
 
 export const getServerSideProps: GetStaticProps = async () => {
-  const competitions = (await prisma.competition.findMany({})).map((c) => ({
+  const competitions = (
+    await prisma.competition.findMany({
+      orderBy: {
+        startDate: "desc",
+      },
+    })
+  ).map((c) => ({
     ...c,
     startDate: String(c.startDate),
     endDate: String(c.endDate),
@@ -29,6 +37,7 @@ const Competitions: React.FC<Props> = (props) => {
   const theme = useMantineTheme();
   const secondaryColor =
     theme.colorScheme === "dark" ? theme.colors.dark[1] : theme.colors.gray[7];
+  const now = new Date();
 
   return (
     <AppShell
@@ -59,23 +68,42 @@ const Competitions: React.FC<Props> = (props) => {
       }
     >
       <Stack>
-        {props.competitions.map((competition) => (
-          <a
-            key={competition.id}
-            href={`/c/${competition.id}`}
-            style={{ textDecoration: "none" }}
-          >
-            <Card shadow="sm" p="lg">
-              <Text weight={500}>{competition.name}</Text>
-              <Text
-                size="sm"
-                style={{ color: secondaryColor, lineHeight: 1.5 }}
-              >
-                Active now!
-              </Text>
-            </Card>
-          </a>
-        ))}
+        {props.competitions.map((competition) => {
+          let status;
+          let enabled = true;
+          if (new Date(competition.endDate) < now) {
+            status =
+              "Competition is over! You can still participate asynchronously.";
+          } else {
+            const startDate = new Date(competition.startDate);
+            if (startDate < now) {
+              status = "Active now!";
+            } else {
+              status = "Contest starts at " + startDate.toLocaleString();
+              enabled = false;
+            }
+          }
+          return (
+            <UnstyledButton
+              key={competition.id}
+              disabled={false}
+              onClick={() => Router.push(`/c/${competition.id}`)}
+              style={{
+                opacity: enabled ? 1 : 0.5,
+              }}
+            >
+              <Card shadow="sm" p="lg">
+                <Text weight={500}>{competition.name}</Text>
+                <Text
+                  size="sm"
+                  style={{ color: secondaryColor, lineHeight: 1.5 }}
+                >
+                  {status}
+                </Text>
+              </Card>
+            </UnstyledButton>
+          );
+        })}
       </Stack>
     </AppShell>
   );
