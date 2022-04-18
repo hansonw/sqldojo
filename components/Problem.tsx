@@ -18,13 +18,67 @@ import {
   Box,
   ActionIcon,
   UnstyledButton,
+  Popover,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { Prism } from "@mantine/prism";
-import { Check, X, Trash, Terminal } from "tabler-icons-react";
+import { Trash, Terminal } from "tabler-icons-react";
 import useSWR from "swr/immutable";
 
-const _queries = new Map();
+enum AnswerState {
+  Waiting,
+  Correct,
+  Incorrect,
+}
+
+type QueryResult =
+  | { rows: undefined; columns: undefined; count: undefined; error: string }
+  | { rows: any[]; columns: string[]; count: number; error: undefined };
+
+class QueryStore {
+  id: number;
+  query: string;
+  database: string;
+
+  _resultCache: Promise<QueryResult> | null;
+  _answerState: AnswerState | null;
+
+  constructor(id: number, query: string, database: string) {
+    this.id = id;
+    this.query = query;
+    this.database = database;
+  }
+
+  getResults(): Promise<QueryResult> {
+    if (this._resultCache != null) {
+      return this._resultCache;
+    }
+    this._resultCache = fetch(`/api/query?database=${this.database}`, {
+      body: this.query,
+      method: "POST",
+    }).then((res) => res.json());
+    return this._resultCache;
+  }
+
+  async verify(): Promise<AnswerState> {
+    return fetch(`/api/verify?database=${this.database}`, {
+      body: this.query,
+      method: "POST",
+    })
+      .then((response) => response.json())
+      .catch((err) => ({ error: String(err) }))
+      .then((data) => {
+        if (data.error) {
+          console.error(data.error);
+        }
+        return (this._answerState = data.correct
+          ? AnswerState.Correct
+          : AnswerState.Incorrect);
+      });
+  }
+}
+
+const _queries = new Map<string, QueryStore[]>();
 
 const Problem: React.FC<{ problem: ProblemModel }> = ({ problem }) => {
   const queryViewport = useRef<HTMLDivElement>();
@@ -33,7 +87,7 @@ const Problem: React.FC<{ problem: ProblemModel }> = ({ problem }) => {
       query: "SELECT",
     },
   });
-  const [_, setUpdateCounter] = React.useState(0);
+  const [nextId, setNextId] = React.useState(1);
   const scrollToBottom = React.useCallback(() => {
     // After React update..
     setTimeout(() => {
@@ -45,8 +99,10 @@ const Problem: React.FC<{ problem: ProblemModel }> = ({ problem }) => {
       if (!_queries.has(problem.id)) {
         _queries.set(problem.id, []);
       }
-      _queries.get(problem.id).push(form.values.query);
-      setUpdateCounter((c) => c + 1);
+      _queries
+        .get(problem.id)
+        .push(new QueryStore(nextId, form.values.query, problem.dbName));
+      setNextId((c) => c + 1);
       scrollToBottom();
       e.preventDefault();
     },
@@ -98,14 +154,16 @@ const Problem: React.FC<{ problem: ProblemModel }> = ({ problem }) => {
               <Text m="sm">Enter a query below to get started!</Text>
             ) : (
               queries.map((query, i) => (
-                <div style={{ marginBottom: 8, maxWidth: "100%" }} key={i}>
+                <div
+                  style={{ marginBottom: 8, maxWidth: "100%" }}
+                  key={query.id}
+                >
                   <Query
-                    database={problem.dbName}
                     query={query}
                     onComplete={scrollToBottom}
                     onDelete={() => {
                       _queries.get(problem.id).splice(i, 1);
-                      setUpdateCounter((c) => c + 1);
+                      setNextId((c) => c + 1);
                     }}
                   />
                 </div>
@@ -142,19 +200,45 @@ const Problem: React.FC<{ problem: ProblemModel }> = ({ problem }) => {
   );
 };
 
-enum AnswerState {
-  Waiting,
-  Correct,
-  Incorrect,
-}
-
-function getButton(state: AnswerState | null, onSubmit) {
-  switch (state) {
+function SubmitButton({ answerState, onSubmit }) {
+  const [showConfirm, setShowConfirm] = React.useState(false);
+  switch (answerState) {
     case null:
+    case undefined:
       return (
-        <Button type="submit" onClick={onSubmit} style={{ flexGrow: 1 }}>
-          Submit Answer
-        </Button>
+        <Popover
+          opened={showConfirm}
+          onClose={() => setShowConfirm(false)}
+          target={
+            <Button
+              type="submit"
+              onClick={() => setShowConfirm(true)}
+              style={{ width: "100%" }}
+            >
+              Submit Answer
+            </Button>
+          }
+          styles={{
+            root: { flexGrow: 1 },
+          }}
+          width={260}
+          position="top"
+        >
+          <Text weight={500}>Are you sure?</Text>
+          <Text>Incorrect submissions will add a 5 minute time penalty.</Text>
+          <Group mt="sm">
+            <Button type="submit" onClick={onSubmit}>
+              Submit
+            </Button>
+            <Button
+              type="reset"
+              variant="outline"
+              onClick={() => setShowConfirm(false)}
+            >
+              Cancel
+            </Button>
+          </Group>
+        </Popover>
       );
     case AnswerState.Waiting:
       return (
@@ -196,49 +280,53 @@ function getButton(state: AnswerState | null, onSubmit) {
   }
 }
 
-function Query({ query, database, onComplete, onDelete }) {
-  const swr = useSWR(`${database}:${query}`, () =>
-    fetch(`/api/query?database=${database}`, {
-      body: query,
-      method: "POST",
-    })
-      .then((response) => response.json())
-      .finally(onComplete)
+function Query({
+  query,
+  onComplete,
+  onDelete,
+}: {
+  query: QueryStore;
+  onComplete: () => void;
+  onDelete: () => void;
+}) {
+  const queryStr = query.query;
+  const swr = useSWR(String(query.id), () =>
+    query.getResults().finally(onComplete)
   );
 
-  const [answerState, setAnswerState] = React.useState(null);
+  const [answerState, setAnswerState] = React.useState(query._answerState);
 
   function onSubmit() {
     if (answerState != null) {
       return;
     }
     setAnswerState(AnswerState.Waiting);
-    fetch(`/api/verify?database=${database}`, {
-      body: query,
-      method: "POST",
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.correct) {
-          setAnswerState(AnswerState.Correct);
-        } else {
-          setAnswerState(AnswerState.Incorrect);
-        }
-      });
+    query.verify().then(setAnswerState);
   }
 
-  const rows = swr.data?.rows?.map((row, i) => (
-    <tr key={i}>
-      {Object.values(row).map((value, j) => (
-        <td key={j}>{value}</td>
-      ))}
-    </tr>
-  ));
-  const error = swr.error || swr.data?.error;
-
+  const { data, error } = swr;
   let content = null;
-  if (rows != null) {
-    if (rows.length === 0 || !swr.data?.columns?.length) {
+  if (data == null) {
+    content = <Progress value={100} animate mt="xs" />;
+  } else if (error != null || data.error != null) {
+    content = (
+      <Stack pt="xs">
+        <Alert title="Error" color="red">
+          {error || data.error}
+        </Alert>
+        <Button
+          leftIcon={<Trash />}
+          onClick={onDelete}
+          variant="outline"
+          color="red"
+        >
+          Delete
+        </Button>
+      </Stack>
+    );
+  } else {
+    const { rows, columns, count } = swr.data;
+    if (rows.length === 0 || columns.length === 0) {
       content = (
         <Stack pt="xs">
           <Alert title="Empty result" color="yellow">
@@ -261,21 +349,29 @@ function Query({ query, database, onComplete, onDelete }) {
             <Table horizontalSpacing={2} verticalSpacing={2} striped>
               <thead>
                 <tr>
-                  {swr.data?.columns.map((key, i) => (
+                  {columns.map((key, i) => (
                     <th key={i}>{key}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody>{rows}</tbody>
+              <tbody>
+                {rows.map((row, i) => (
+                  <tr key={i}>
+                    {Object.values(row).map((value, j) => (
+                      <td key={j}>{value}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
             </Table>
           </div>
-          {swr.data!.count > rows.length && (
+          {count > rows.length && (
             <Alert title="Truncated result" color="yellow">
-              Only showing {rows.length} rows out of {swr.data!.count} total.
+              Only showing {rows.length} rows out of {count} total.
             </Alert>
           )}
           <Group>
-            {getButton(answerState, onSubmit)}
+            <SubmitButton answerState={answerState} onSubmit={onSubmit} />
             {answerState == null && (
               <ActionIcon
                 variant="outline"
@@ -290,30 +386,12 @@ function Query({ query, database, onComplete, onDelete }) {
         </Stack>
       );
     }
-  } else if (error) {
-    content = (
-      <Stack pt="xs">
-        <Alert title="Error" color="red">
-          {error}
-        </Alert>
-        <Button
-          leftIcon={<Trash />}
-          onClick={onDelete}
-          variant="outline"
-          color="red"
-        >
-          Delete
-        </Button>
-      </Stack>
-    );
-  } else {
-    content = <Progress value={100} animate mt="xs" />;
   }
 
   return (
     <Card shadow="sm" p="sm" m="sm" style={{ maxWidth: "100%" }} withBorder>
       <Prism language="sql" noCopy colorScheme="dark" scrollAreaComponent="div">
-        {query}
+        {queryStr}
       </Prism>
       {content}
     </Card>
