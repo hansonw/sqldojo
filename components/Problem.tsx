@@ -15,12 +15,13 @@ import {
   Card,
   Progress,
   Table,
-  ScrollArea,
   Box,
+  ActionIcon,
+  UnstyledButton,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { Prism } from "@mantine/prism";
-import { Check, X } from "tabler-icons-react";
+import { Check, X, Trash, Terminal } from "tabler-icons-react";
 import useSWR from "swr/immutable";
 
 const _queries = new Map();
@@ -58,7 +59,7 @@ const Problem: React.FC<{ problem: ProblemModel }> = ({ problem }) => {
         display: "flex",
         flexGrow: 2,
         flexFlow: "row nowrap",
-        maxHeight: "calc(100vh - var(--mantine-header-height))",
+        height: "calc(100vh - var(--mantine-header-height))",
       }}
     >
       <div style={{ flexGrow: 1, overflow: "scroll", padding: 12 }}>
@@ -87,7 +88,10 @@ const Problem: React.FC<{ problem: ProblemModel }> = ({ problem }) => {
             })}
             p="sm"
           >
-            <Title order={3}>Query Console</Title>
+            <Title order={3}>
+              <Terminal style={{ verticalAlign: "middle", marginRight: 8 }} />
+              Query Console
+            </Title>
           </Box>
           <div style={{ flexGrow: 1, overflowY: "scroll" }} ref={queryViewport}>
             {!queries?.length ? (
@@ -99,6 +103,10 @@ const Problem: React.FC<{ problem: ProblemModel }> = ({ problem }) => {
                     database={problem.dbName}
                     query={query}
                     onComplete={scrollToBottom}
+                    onDelete={() => {
+                      _queries.get(problem.id).splice(i, 1);
+                      setUpdateCounter((c) => c + 1);
+                    }}
                   />
                 </div>
               ))
@@ -140,21 +148,56 @@ enum AnswerState {
   Incorrect,
 }
 
-function getButtonText(state: AnswerState | null) {
+function getButton(state: AnswerState | null, onSubmit) {
   switch (state) {
     case null:
-      return "Submit Answer";
+      return (
+        <Button type="submit" onClick={onSubmit} style={{ flexGrow: 1 }}>
+          Submit Answer
+        </Button>
+      );
     case AnswerState.Waiting:
-      return "Checking...";
+      return (
+        <Button type="submit" disabled style={{ flexGrow: 1 }}>
+          Checking...
+        </Button>
+      );
     case AnswerState.Correct:
-      return "You got it! 🎉";
+      return (
+        <UnstyledButton
+          sx={(theme) => ({
+            borderRadius: 4,
+            backgroundColor: theme.colors.green[6],
+            flexGrow: 1,
+            color: "white",
+            height: 36,
+            textAlign: "center",
+          })}
+        >
+          <Text>You got it! 🎉</Text>
+        </UnstyledButton>
+      );
+
     case AnswerState.Incorrect:
-      return "Bummer, try again?";
+      return (
+        <UnstyledButton
+          sx={(theme) => ({
+            borderRadius: 4,
+            backgroundColor: theme.colors.orange[8],
+            flexGrow: 1,
+            color: "white",
+            height: 36,
+            textAlign: "center",
+          })}
+        >
+          <Text>Sorry, wrong answer — try again</Text>
+        </UnstyledButton>
+      );
   }
 }
 
-function Query({ query, database, onComplete }) {
-  const swr = useSWR(query, () =>
+function Query({ query, database, onComplete, onDelete }) {
+  const swr = useSWR(`${database}:${query}`, () =>
     fetch(`/api/query?database=${database}`, {
       body: query,
       method: "POST",
@@ -197,58 +240,71 @@ function Query({ query, database, onComplete }) {
   if (rows != null) {
     if (rows.length === 0 || !swr.data?.columns?.length) {
       content = (
-        <Alert title="Empty result" color="yellow">
-          Your query came back empty.
-        </Alert>
+        <Stack pt="xs">
+          <Alert title="Empty result" color="yellow">
+            Your query came back empty.
+          </Alert>
+          <Button
+            leftIcon={<Trash />}
+            onClick={onDelete}
+            variant="outline"
+            color="red"
+          >
+            Delete
+          </Button>
+        </Stack>
       );
     } else {
       content = (
         <Stack pt="xs">
-          <Table horizontalSpacing={2} verticalSpacing={2} striped>
-            <thead>
-              <tr>
-                {swr.data?.columns.map((key, i) => (
-                  <th key={i}>{key}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>{rows}</tbody>
-          </Table>
+          <div style={{ maxWidth: "100%", overflowX: "scroll" }}>
+            <Table horizontalSpacing={2} verticalSpacing={2} striped>
+              <thead>
+                <tr>
+                  {swr.data?.columns.map((key, i) => (
+                    <th key={i}>{key}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>{rows}</tbody>
+            </Table>
+          </div>
           {swr.data!.count > rows.length && (
             <Alert title="Truncated result" color="yellow">
               Only showing {rows.length} rows out of {swr.data!.count} total.
             </Alert>
           )}
-          <Button
-            type="submit"
-            variant="gradient"
-            gradient={
-              answerState === AnswerState.Correct
-                ? { from: "teal", to: "lime" }
-                : answerState === AnswerState.Incorrect
-                ? { from: "orange", to: "red" }
-                : { from: "indigo", to: "cyan" }
-            }
-            leftIcon={
-              answerState === AnswerState.Correct ? (
-                <Check />
-              ) : answerState === AnswerState.Incorrect ? (
-                <X />
-              ) : null
-            }
-            onClick={onSubmit}
-            disabled={answerState === AnswerState.Waiting}
-          >
-            {getButtonText(answerState)}
-          </Button>
+          <Group>
+            {getButton(answerState, onSubmit)}
+            {answerState == null && (
+              <ActionIcon
+                variant="outline"
+                color="red"
+                onClick={onDelete}
+                size={36}
+              >
+                <Trash />
+              </ActionIcon>
+            )}
+          </Group>
         </Stack>
       );
     }
   } else if (error) {
     content = (
-      <Alert title="Error" color="red">
-        {error}
-      </Alert>
+      <Stack pt="xs">
+        <Alert title="Error" color="red">
+          {error}
+        </Alert>
+        <Button
+          leftIcon={<Trash />}
+          onClick={onDelete}
+          variant="outline"
+          color="red"
+        >
+          Delete
+        </Button>
+      </Stack>
     );
   } else {
     content = <Progress value={100} animate mt="xs" />;
