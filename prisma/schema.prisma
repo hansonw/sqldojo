@@ -30,6 +30,8 @@ model Competition {
   name            String
   startDate       DateTime
   endDate         DateTime
+  content         String?
+
   problems        Problem[]
   registeredUsers User[]
 }

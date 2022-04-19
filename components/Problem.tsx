@@ -290,7 +290,7 @@ function Query({
   onDelete: () => void;
 }) {
   const queryStr = query.query;
-  const swr = useSWR(String(query.id), () =>
+  const swr = useSWR(`${query.database}:${query.id}:${query.query}`, () =>
     query.getResults().finally(onComplete)
   );
 

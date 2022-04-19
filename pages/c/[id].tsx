@@ -1,24 +1,25 @@
-import React from "react";
-import { GetServerSidePropsContext } from "next";
-import prisma from "../../lib/prisma";
-import { Competition, Problem } from "@prisma/client";
 import {
-  AppShell,
-  Header,
-  Text,
-  useMantineTheme,
-  Title,
-  Navbar,
-  UnstyledButton,
   ActionIcon,
+  AppShell,
+  Box,
   Group,
+  Header,
+  Navbar,
+  Text,
+  Title,
+  UnstyledButton,
+  useMantineTheme,
 } from "@mantine/core";
-import Router from "next/router";
-
+import { Competition, Problem } from "@prisma/client";
+import { GetServerSidePropsContext } from "next";
 import dynamic from "next/dynamic";
+import Router from "next/router";
+import React from "react";
+import ReactMarkdown from "react-markdown";
 import { ChevronLeft, ChevronRight } from "tabler-icons-react";
 import HeaderAuth from "../../components/HeaderAuth";
-import { getUser } from "../../lib/util";
+import prisma from "../../lib/prisma";
+import { getUser, serializePrisma } from "../../lib/util";
 
 const Problem = dynamic(() => import("../../components/Problem"), {
   ssr: false,
@@ -56,17 +57,31 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     orderBy: [{ points: "asc" }, { id: "asc" }],
   });
   return {
-    props: { name: competition.name, problems },
+    props: { competition: serializePrisma(competition), problems },
   };
 }
 
-const Competition: React.FC<{ name: string; problems: Problem[] }> = ({
-  name,
-  problems,
-}) => {
+const Competition: React.FC<{
+  competition: Competition;
+  problems: Problem[];
+}> = ({ competition, problems }) => {
   const theme = useMantineTheme();
   const [showNavbar, setShowNavbar] = React.useState(true);
-  const [selectedProblem, setProblem] = React.useState(problems[0]);
+  const [selectedProblem, setProblem] = React.useState<Problem | null>(null);
+
+  React.useEffect(() => {
+    function handleHashChange() {
+      setProblem(
+        problems.find(
+          (problem) => problem.id === window.location.hash.substring(1)
+        )
+      );
+    }
+    handleHashChange();
+    Router.events.on("hashChangeComplete", handleHashChange);
+    return () => Router.events.off("hashChangeComplete", handleHashChange);
+  }, []);
+
   return (
     <AppShell
       styles={{
@@ -97,13 +112,18 @@ const Competition: React.FC<{ name: string; problems: Problem[] }> = ({
           </ActionIcon>
           {showNavbar && (
             <>
-              <Text weight={500} mb="xs">
-                {name}
-              </Text>
+              <UnstyledButton
+                onClick={() => Router.push("#")}
+                title={competition.name}
+              >
+                <Text weight={500} mb="xs">
+                  {competition.name}
+                </Text>
+              </UnstyledButton>
               {problems.map((problem) => (
                 <UnstyledButton
                   key={problem.id}
-                  onClick={() => setProblem(problem)}
+                  onClick={() => Router.push(`#${problem.id}`)}
                   sx={(theme) => ({
                     display: "block",
                     width: "100%",
@@ -124,7 +144,7 @@ const Competition: React.FC<{ name: string; problems: Problem[] }> = ({
                 >
                   <Text
                     size="sm"
-                    weight={selectedProblem.id === problem.id ? 600 : null}
+                    weight={selectedProblem?.id === problem.id ? 600 : null}
                   >
                     [{problem.difficulty}] {problem.name}
                   </Text>
@@ -145,7 +165,13 @@ const Competition: React.FC<{ name: string; problems: Problem[] }> = ({
         </Header>
       }
     >
-      <Problem problem={selectedProblem} />
+      {selectedProblem ? (
+        <Problem problem={selectedProblem} />
+      ) : (
+        <Box pl="md">
+          <ReactMarkdown children={competition.content} />
+        </Box>
+      )}
     </AppShell>
   );
 };
