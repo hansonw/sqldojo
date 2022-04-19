@@ -18,15 +18,15 @@ import Router from "next/router";
 import dynamic from "next/dynamic";
 import { ChevronLeft, ChevronRight } from "tabler-icons-react";
 import HeaderAuth from "../../components/HeaderAuth";
-import { getSession } from "next-auth/react";
+import { getUser } from "../../lib/util";
 
 const Problem = dynamic(() => import("../../components/Problem"), {
   ssr: false,
 });
 
 export async function getServerSideProps(context: GetServerSidePropsContext) {
-  const session = await getSession(context);
-  if (!session) {
+  const user = await getUser(context);
+  if (!user) {
     return {
       redirect: {
         destination: "/",
@@ -39,6 +39,14 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
       id: context.params.id as string,
     },
   });
+  if (competition.startDate > new Date() && !user.isAdmin) {
+    return {
+      redirect: {
+        destination: "/",
+      },
+    };
+  }
+
   const problems = await prisma.problem.findMany({
     where: {
       competition: {
@@ -67,6 +75,7 @@ const Competition: React.FC<{ name: string; problems: Problem[] }> = ({
             theme.colorScheme === "dark"
               ? theme.colors.dark[8]
               : theme.colors.gray[0],
+          overflow: "hidden",
         },
       }}
       navbarOffsetBreakpoint="sm"

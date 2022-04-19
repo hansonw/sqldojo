@@ -16,6 +16,8 @@ model User {
   updatedAt     DateTime      @updatedAt @map("updated_at")
   image         String?
   emailVerified DateTime?
+  isAdmin       Boolean @default(false)
+
   accounts      Account[]
   sessions      Session[]
   competitions  Competition[]

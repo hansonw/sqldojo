@@ -1,46 +1,43 @@
-import React from "react";
-import { GetStaticProps } from "next";
-import prisma from "../lib/prisma";
-import { Competition as CompetitionModel } from "@prisma/client";
 import {
   AppShell,
-  Header,
-  Text,
-  useMantineTheme,
-  Title,
-  Stack,
-  Card,
-  UnstyledButton,
   Button,
-  Container,
-  Loader,
+  Card,
+  Center,
   Group,
+  Header,
+  Stack,
+  Text,
+  Title,
+  UnstyledButton,
+  useMantineTheme,
 } from "@mantine/core";
+import { Competition as CompetitionModel, User } from "@prisma/client";
+import { GetServerSidePropsContext } from "next";
+import { getSession, signIn } from "next-auth/react";
 import Router from "next/router";
-import { useSession, signIn } from "next-auth/react";
+import React from "react";
 import HeaderAuth from "../components/HeaderAuth";
+import prisma from "../lib/prisma";
+import { getUser, serializePrisma } from "../lib/util";
 
-export const getServerSideProps: GetStaticProps = async () => {
-  const competitions = (
-    await prisma.competition.findMany({
+export async function getServerSideProps(context: GetServerSidePropsContext) {
+  const [user, competitions] = await Promise.all([
+    getUser(context),
+    prisma.competition.findMany({
       orderBy: {
         startDate: "desc",
       },
-    })
-  ).map((c) => ({
-    ...c,
-    startDate: String(c.startDate),
-    endDate: String(c.endDate),
-  }));
-  return { props: { competitions } };
-};
+    }),
+  ]);
+  return { props: serializePrisma({ competitions, user }) };
+}
 
 type Props = {
   competitions: CompetitionModel[];
+  user: User;
 };
 
-const Competitions: React.FC<Props> = (props) => {
-  const { data: session, status: sessionStatus } = useSession();
+const Competitions: React.FC<Props> = ({ competitions, user }) => {
   const theme = useMantineTheme();
   const secondaryColor =
     theme.colorScheme === "dark" ? theme.colors.dark[1] : theme.colors.gray[7];
@@ -72,10 +69,10 @@ const Competitions: React.FC<Props> = (props) => {
         </Header>
       }
     >
-      {session ? (
+      {user ? (
         <Stack>
-          {props.competitions.map((competition) => {
-            let status;
+          {competitions.map((competition) => {
+            let status: string;
             let enabled = true;
             if (new Date(competition.endDate) < now) {
               status =
@@ -92,7 +89,7 @@ const Competitions: React.FC<Props> = (props) => {
             return (
               <UnstyledButton
                 key={competition.id}
-                disabled={false}
+                disabled={!enabled && !user.isAdmin}
                 onClick={() => Router.push(`/c/${competition.id}`)}
                 style={{
                   opacity: enabled ? 1 : 0.5,
@@ -111,19 +108,15 @@ const Competitions: React.FC<Props> = (props) => {
             );
           })}
         </Stack>
-      ) : sessionStatus === "loading" ? (
-        <Container>
-          <Loader />
-        </Container>
       ) : (
-        <Container>
+        <Center>
           <Card shadow="sm" style={{ textAlign: "center" }}>
             <Text mb={12}>Welcome! Sign in to get started.</Text>
             <Button type="submit" onClick={() => signIn("auth0")}>
               Sign in
             </Button>
           </Card>
-        </Container>
+        </Center>
       )}
     </AppShell>
   );
