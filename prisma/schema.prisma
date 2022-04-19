@@ -9,28 +9,30 @@ datasource db {
 }
 
 model User {
-  id            String        @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String?
-  email         String?       @unique
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  email         String?   @unique
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
   image         String?
   emailVerified DateTime?
-  isAdmin       Boolean @default(false)
+  isAdmin       Boolean   @default(false)
 
-  accounts      Account[]
-  sessions      Session[]
-  competitions  Competition[]
-
+  accounts           Account[]
+  sessions           Session[]
+  competitions       Competition[]
+  problemOpens       ProblemOpen[]
+  problemQueries     ProblemQuery[]
+  problemSubmissions ProblemSubmission[]
   @@map("users")
 }
 
 model Competition {
-  id              String    @id @default(cuid())
-  name            String
-  startDate       DateTime
-  endDate         DateTime
-  content         String?
+  id        String   @id @default(cuid())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  content   String?
 
   problems        Problem[]
   registeredUsers User[]
@@ -45,6 +47,45 @@ model Problem {
   points        Int
   competitionId String
   competition   Competition       @relation(fields: [competitionId], references: [id])
+
+  opens       ProblemOpen[]
+  queries     ProblemQuery[]
+  submissions ProblemSubmission[]
+}
+
+model ProblemOpen {
+  id        String   @id @default(cuid())
+  problemId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  problem Problem @relation(fields: [problemId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([problemId, userId])
+}
+
+model ProblemQuery {
+  id        String   @id @default(cuid())
+  problemId String
+  userId    String
+  createdAt DateTime @default(now())
+  query     String
+
+  problem Problem @relation(fields: [problemId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+}
+
+model ProblemSubmission {
+  id        String   @id @default(cuid())
+  problemId String
+  userId    String
+  createdAt DateTime @default(now())
+  query     String
+  correct   Boolean
+
+  problem Problem @relation(fields: [problemId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
 }
 
 model Account {

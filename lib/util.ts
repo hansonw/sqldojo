@@ -1,6 +1,5 @@
 import { User } from "@prisma/client";
-import { GetServerSidePropsContext } from "next";
-import { getSession } from "next-auth/react";
+import { getSession, GetSessionParams } from "next-auth/react";
 import prisma from "./prisma";
 
 export function serializePrisma(obj: Object): Object {
@@ -9,11 +8,8 @@ export function serializePrisma(obj: Object): Object {
   return JSON.parse(JSON.stringify(obj));
 }
 
-export function getUser(
-  context: GetServerSidePropsContext
-): Promise<User | null> {
-  return getSession(context).then((session) => {
-    const email = session?.user?.email;
-    return email && prisma.user.findFirst({ where: { email } });
-  });
+export async function getUser(context: GetSessionParams): Promise<User | null> {
+  const session = await getSession(context);
+  const email = session?.user?.email;
+  return await (email && prisma.user.findFirst({ where: { email } }));
 }
