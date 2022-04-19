@@ -1,45 +1,84 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["dataProxy"]
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-  previewFeatures = ["dataproxy"]
-}
-
 model User {
-  id            String       @default(cuid()) @id
+  id            String        @id @default(cuid())
   name          String?
-  email         String?   @unique
-  createdAt     DateTime  @default(now()) @map(name: "created_at")
-  updatedAt     DateTime  @updatedAt @map(name: "updated_at")
+  email         String?       @unique
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  image         String?
+  emailVerified DateTime?
+  accounts      Account[]
+  sessions      Session[]
   competitions  Competition[]
-  @@map(name: "users")
+
+  @@map("users")
 }
 
 model Competition {
-  id            String       @default(cuid()) @id
+  id              String    @id @default(cuid())
+  name            String
+  startDate       DateTime
+  endDate         DateTime
+  problems        Problem[]
+  registeredUsers User[]
+}
+
+model Problem {
+  id            String            @id
   name          String
-  startDate     DateTime
-  endDate       DateTime
-  problems      Problem[]
-  registeredUsers   User[]
+  dbName        String
+  description   String
+  difficulty    ProblemDifficulty
+  points        Int
+  competitionId String
+  competition   Competition       @relation(fields: [competitionId], references: [id])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 enum ProblemDifficulty {
   EASY
   MEDIUM
   HARD
-}
-
-model Problem {
-  id              String  @id
-  name            String
-  dbName          String  // DB name in sqldojo-contest
-  description     String  // (supports markdown)
-  difficulty      ProblemDifficulty
-  points          Int
-  competition     Competition @relation(fields: [competitionId], references: [id])
-  competitionId   String
 }

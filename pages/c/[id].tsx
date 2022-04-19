@@ -1,5 +1,5 @@
 import React from "react";
-import { GetServerSideProps } from "next";
+import { GetServerSidePropsContext } from "next";
 import prisma from "../../lib/prisma";
 import { Competition, Problem } from "@prisma/client";
 import {
@@ -10,20 +10,33 @@ import {
   Title,
   Navbar,
   UnstyledButton,
-  Burger,
+  ActionIcon,
+  Group,
 } from "@mantine/core";
 import Router from "next/router";
 
 import dynamic from "next/dynamic";
+import { ChevronLeft, ChevronRight } from "tabler-icons-react";
+import HeaderAuth from "../../components/HeaderAuth";
+import { getSession } from "next-auth/react";
 
 const Problem = dynamic(() => import("../../components/Problem"), {
   ssr: false,
 });
 
-export const getServerSideProps: GetServerSideProps = async ({ params }) => {
+export async function getServerSideProps(context: GetServerSidePropsContext) {
+  const session = await getSession(context);
+  if (!session) {
+    return {
+      redirect: {
+        destination: "/",
+      },
+    };
+  }
+
   const competition = await prisma.competition.findUnique({
     where: {
-      id: params.id as string,
+      id: context.params.id as string,
     },
   });
   const problems = await prisma.problem.findMany({
@@ -37,7 +50,7 @@ export const getServerSideProps: GetServerSideProps = async ({ params }) => {
   return {
     props: { name: competition.name, problems },
   };
-};
+}
 
 const Competition: React.FC<{ name: string; problems: Problem[] }> = ({
   name,
@@ -61,64 +74,65 @@ const Competition: React.FC<{ name: string; problems: Problem[] }> = ({
       padding={0}
       fixed
       navbar={
-        showNavbar && (
-          <Navbar
-            p="md"
-            hiddenBreakpoint="sm"
-            hidden // NOTE: only actually hides on hiddenBreakpoint
-            width={{ sm: 300, lg: 300 }}
+        <Navbar
+          p="md"
+          hiddenBreakpoint="sm"
+          hidden // NOTE: only actually hides on hiddenBreakpoint
+          width={{ sm: showNavbar ? 300 : 32, lg: showNavbar ? 300 : 32 }}
+        >
+          <ActionIcon
+            style={{ position: "absolute", right: 0, top: "50%" }}
+            onClick={() => setShowNavbar(!showNavbar)}
           >
-            <Text weight={500} mb="xs">
-              {name}
-            </Text>
-            {problems.map((problem) => (
-              <UnstyledButton
-                key={problem.id}
-                onClick={() => setProblem(problem)}
-                sx={(theme) => ({
-                  display: "block",
-                  width: "100%",
-                  padding: theme.spacing.xs,
-                  borderRadius: theme.radius.sm,
-                  color:
-                    theme.colorScheme === "dark"
-                      ? theme.colors.dark[0]
-                      : theme.black,
-
-                  "&:hover": {
-                    backgroundColor:
+            {showNavbar ? <ChevronLeft /> : <ChevronRight />}
+          </ActionIcon>
+          {showNavbar && (
+            <>
+              <Text weight={500} mb="xs">
+                {name}
+              </Text>
+              {problems.map((problem) => (
+                <UnstyledButton
+                  key={problem.id}
+                  onClick={() => setProblem(problem)}
+                  sx={(theme) => ({
+                    display: "block",
+                    width: "100%",
+                    padding: theme.spacing.xs,
+                    borderRadius: theme.radius.sm,
+                    color:
                       theme.colorScheme === "dark"
-                        ? theme.colors.dark[6]
-                        : theme.colors.gray[0],
-                  },
-                })}
-              >
-                <Text
-                  size="sm"
-                  weight={selectedProblem.id === problem.id ? 600 : null}
+                        ? theme.colors.dark[0]
+                        : theme.black,
+
+                    "&:hover": {
+                      backgroundColor:
+                        theme.colorScheme === "dark"
+                          ? theme.colors.dark[6]
+                          : theme.colors.gray[0],
+                    },
+                  })}
                 >
-                  [{problem.difficulty}] {problem.name}
-                </Text>
-              </UnstyledButton>
-            ))}
-          </Navbar>
-        )
+                  <Text
+                    size="sm"
+                    weight={selectedProblem.id === problem.id ? 600 : null}
+                  >
+                    [{problem.difficulty}] {problem.name}
+                  </Text>
+                </UnstyledButton>
+              ))}
+            </>
+          )}
+        </Navbar>
       }
       header={
         <Header height={70} p="md">
-          <div
-            style={{ display: "flex", alignItems: "center", height: "100%" }}
-          >
+          <Group position="apart">
             <UnstyledButton onClick={() => Router.push("/")} mr="lg">
               <Title>SQL Dojo</Title>
             </UnstyledButton>
-            <UnstyledButton
-              onClick={() => setShowNavbar(!showNavbar)}
-              title="Toggle nav bar"
-            >
-              <Text>Problems</Text>
-            </UnstyledButton>
-          </div>
+            <HeaderAuth />
+          </Group>
         </Header>
       }
     >
