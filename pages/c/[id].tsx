@@ -1,5 +1,6 @@
 import {
   ActionIcon,
+  Anchor,
   AppShell,
   Badge,
   Box,
@@ -10,7 +11,6 @@ import {
   ThemeIcon,
   Timeline,
   Title,
-  Tooltip,
   UnstyledButton,
   useMantineTheme,
 } from "@mantine/core";
@@ -322,12 +322,9 @@ const Competition: React.FC<{
               <UnstyledButton onClick={() => Router.push("/")} mr="lg">
                 <Title>SQL Dojo</Title>
               </UnstyledButton>
-              <UnstyledButton
-                onClick={() => Router.push(`/c/${competition.id}/leaderboard`)}
-                mr="lg"
-              >
+              <Anchor href={`/c/${competition.id}/leaderboard`} target="_blank">
                 <Text>Leaderboard</Text>
-              </UnstyledButton>
+              </Anchor>
               <Badge
                 variant="gradient"
                 gradient={{ from: "indigo", to: "cyan" }}

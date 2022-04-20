@@ -57,7 +57,7 @@ export async function getLeaderboard(
     }),
   ]);
   const users: Map<string, LeaderboardRow> = new Map();
-  if (selfOnly && participants.length === 0) {
+  if (!participants.find((p) => p.id === user.id)) {
     participants.push(user);
   }
   for (const user of participants) {
