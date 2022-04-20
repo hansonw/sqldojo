@@ -3,12 +3,21 @@ import format from "pg-format";
 import getRawBody from "raw-body";
 import prisma from "../../../../lib/prisma";
 import { getUser } from "../../../../lib/util";
+import { solutionsPool } from "../../../../lib/contestDB";
 
 export const config = {
   api: {
     bodyParser: false,
   },
 };
+
+function _stringify(row, checkCols) {
+  const cols = [];
+  for (const col of checkCols) {
+    cols.push(String(row[col]));
+  }
+  return cols.join("\t");
+}
 
 export default async function handler(req, res) {
   const body = await getRawBody(req);
@@ -31,18 +40,12 @@ export default async function handler(req, res) {
     statement_timeout: 5000,
     query_timeout: 5000,
   });
-  const solutionsClient = new pg.Client({
-    host: process.env.CONTESTANT_HOST,
-    user: process.env.SOLUTIONS_USER,
-    password: process.env.SOLUTIONS_PWD,
-    database: "solutions",
-  });
   try {
-    await Promise.all([client.connect(), solutionsClient.connect()]);
+    await client.connect();
     const queryBody = body.toString("utf-8");
     const [result, expected] = await Promise.all([
       client.query(queryBody),
-      solutionsClient.query(
+      solutionsPool.query(
         format("SELECT * FROM %I ORDER BY sort_id ASC", problem.dbName)
       ),
     ]);
@@ -59,14 +62,24 @@ export default async function handler(req, res) {
           checkCols.push(col.name);
         }
       }
-      for (let i = 0; i < result.rows.length && correct; i++) {
-        for (let col of checkCols) {
-          if (String(result.rows[i][col]) !== String(expected.rows[i][col])) {
-            console.log(
-              `mismatch at row ${i} col ${col}: ${result.rows[i][col]} vs ${expected.rows[i][col]}`
-            );
-            correct = false;
-            break;
+      if (expected.rows[0]["sort_id"] == null) {
+        const expectedOrder = expected.rows.map((r) =>
+          _stringify(r, checkCols)
+        );
+        const resultOrder = result.rows.map((r) => _stringify(r, checkCols));
+        expectedOrder.sort();
+        resultOrder.sort();
+        correct = expectedOrder.join("\n") == resultOrder.join("\n");
+      } else {
+        for (let i = 0; i < result.rows.length && correct; i++) {
+          for (let col of checkCols) {
+            if (String(result.rows[i][col]) !== String(expected.rows[i][col])) {
+              console.log(
+                `mismatch at row ${i} col ${col}: ${result.rows[i][col]} vs ${expected.rows[i][col]}`
+              );
+              correct = false;
+              break;
+            }
           }
         }
       }
@@ -84,5 +97,5 @@ export default async function handler(req, res) {
     console.error("[verify] Error: ", e);
     res.status(400).json({ error: String(e) });
   }
-  await Promise.all([client.end(), solutionsClient.end()]);
+  await client.end();
 }
