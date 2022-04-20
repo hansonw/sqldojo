@@ -1,9 +1,19 @@
-import { Box, Button, Group, Text, Textarea, Title } from "@mantine/core";
+import {
+  Box,
+  Button,
+  Group,
+  Text,
+  Title,
+  useMantineTheme,
+} from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { Problem as ProblemModel } from "@prisma/client";
+import { highlight, languages } from "prismjs/components/prism-core";
+import "prismjs/components/prism-sql";
 import React, { useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import ResizePanel from "react-resize-panel";
+import CodeEditor from "react-simple-code-editor";
 import remarkGfm from "remark-gfm";
 import useSWR from "swr/immutable";
 import { Terminal } from "tabler-icons-react";
@@ -19,6 +29,7 @@ const Problem: React.FC<{
   onValidate: (result: boolean) => void;
   onDelete: (id: string) => void;
 }> = ({ problem, status, queryStore, onQuery, onValidate, onDelete }) => {
+  const theme = useMantineTheme();
   const _ = useSWR(`/api/problem/${problem.id}/open`, (path) =>
     fetch(path, { method: "POST" })
   );
@@ -110,19 +121,21 @@ const Problem: React.FC<{
               p="sm"
             >
               <form onSubmit={onSubmit}>
-                <Textarea
-                  label="Type in a PostgreSQL SELECT query"
-                  placeholder="Query"
-                  autosize
-                  minRows={2}
-                  maxRows={10}
-                  styles={{ input: { fontFamily: "Menlo, monospace" } }}
+                <CodeEditor
+                  value={form.values.query}
+                  onValueChange={(value) => form.setFieldValue("query", value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && e.metaKey) {
                       onSubmit(e);
                     }
                   }}
-                  {...form.getInputProps("query")}
+                  highlight={(code) => highlight(code, languages.sql)}
+                  padding={4}
+                  className="code-editor"
+                  style={{
+                    border: `1px solid ${theme.colors.gray[4]}`,
+                    borderRadius: 4,
+                  }}
                 />
                 <Group position="right" mt="md">
                   <Button type="submit">Execute</Button>

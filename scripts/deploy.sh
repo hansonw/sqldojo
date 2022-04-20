@@ -3,9 +3,8 @@
 set -e
 git pull --rebase
 
+yarn
 export NODE_ENV=production
-
-yarn prisma generate
 yarn build
 
 pkill -f https.js

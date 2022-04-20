@@ -3,7 +3,7 @@ import { MantineProvider } from "@mantine/core";
 import NextNProgress from "nextjs-progressbar";
 import { SessionProvider } from "next-auth/react";
 
-import "../styles.css";
+import "../styles.scss";
 
 const App = ({ Component, pageProps: { session, ...pageProps } }: AppProps) => {
   return (
