@@ -1,6 +1,7 @@
 import {
   ActionIcon,
   AppShell,
+  Badge,
   Box,
   Group,
   Header,
@@ -9,6 +10,7 @@ import {
   ThemeIcon,
   Timeline,
   Title,
+  Tooltip,
   UnstyledButton,
   useMantineTheme,
 } from "@mantine/core";
@@ -22,6 +24,8 @@ import ReactMarkdown from "react-markdown";
 import useSWR from "swr";
 import { Check, ChevronLeft, ChevronRight, Point, X } from "tabler-icons-react";
 import HeaderAuth from "../../components/HeaderAuth";
+import { LiveTimer } from "../../components/LiveTimer";
+import { getLeaderboard } from "../../lib/leaderboard";
 import prisma from "../../lib/prisma";
 import { QueryStore } from "../../lib/QueryStore";
 import type { LeaderboardResponse } from "../../lib/types";
@@ -57,7 +61,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   const problemFilter = {
     competitionId: competition.id,
   };
-  const [problems, submissions] = await Promise.all([
+  const [problems, submissions, initialLeaderboard] = await Promise.all([
     prisma.problem.findMany({
       where: problemFilter,
       orderBy: [{ points: "asc" }, { id: "asc" }],
@@ -70,12 +74,14 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
         createdAt: "asc",
       },
     }),
+    getLeaderboard(user, competition.id, false),
   ]);
   return {
     props: {
       competition: serializePrisma(competition),
       problems,
       submissions: serializePrisma(submissions),
+      initialLeaderboard,
     },
   };
 }
@@ -84,7 +90,8 @@ const Competition: React.FC<{
   competition: Competition;
   problems: Problem[];
   submissions: ProblemSubmission[];
-}> = ({ competition, problems, submissions }) => {
+  initialLeaderboard: LeaderboardResponse;
+}> = ({ competition, problems, submissions, initialLeaderboard }) => {
   const theme = useMantineTheme();
   const [showNavbar, setShowNavbar] = React.useState(true);
   const [selectedProblem, setProblem] = React.useState<Problem | null>(null);
@@ -93,12 +100,15 @@ const Competition: React.FC<{
   );
   const selfLeaderboard = useSWR<LeaderboardResponse>(
     `/api/c/${competition.id}/leaderboard?self=1`,
-    (key) => fetch(key).then((r) => r.json())
+    (key) => fetch(key).then((r) => r.json()),
+    { fallbackData: initialLeaderboard, revalidateOnMount: false }
   );
   const selfLeaderboardRow = selfLeaderboard.data?.ranking?.[0];
 
   function optimisticOpen(problemId: string) {
-    setLocalOpenProblems((set) => set.set(problemId, Date.now()));
+    if (!localOpenProblems.has(problemId)) {
+      setLocalOpenProblems((set) => set.set(problemId, Date.now()));
+    }
   }
 
   function optimisticScore(problemId: string, correct: boolean) {
@@ -116,9 +126,10 @@ const Competition: React.FC<{
         solveTimeSecs: correct ? submissionTime : 0,
         status: correct ? "solved" : "attempted",
       };
-      selfLeaderboard.mutate(selfLeaderboard.data, {
-        optimisticData: selfLeaderboard.data,
-      });
+      const problem = problems.find((p) => p.id === problemId);
+      selfLeaderboardRow.totalPoints += problem?.points ?? 0;
+      const newData = { ...selfLeaderboard.data };
+      selfLeaderboard.mutate(newData, { optimisticData: newData });
     }
   }
 
@@ -137,18 +148,18 @@ const Competition: React.FC<{
     return () => Router.events.off("hashChangeComplete", handleHashChange);
   }, []);
 
-  const queryStore = React.useMemo(() => {
-    const map = new Map();
+  const [queryStore, setQueryStore] = React.useState(() => {
+    let map = Immutable.Map<string, Immutable.List<QueryStore>>();
     for (const submission of submissions) {
-      let queries = map.get(submission.problemId);
-      if (!queries) {
-        queries = [];
-        map.set(submission.problemId, queries);
-      }
-      queries.push(QueryStore.fromSubmission(submission));
+      map = map.set(
+        submission.problemId,
+        (map.get(submission.problemId) ?? Immutable.List<QueryStore>()).push(
+          QueryStore.fromSubmission(submission)
+        )
+      );
     }
     return map;
-  }, [submissions]);
+  });
 
   return (
     <AppShell
@@ -206,19 +217,47 @@ const Competition: React.FC<{
               >
                 {problems.map((problem) => {
                   let bullet = null;
+                  let statusText = null;
+                  const isSelected = problem.id === selectedProblem?.id;
                   const problemState =
                     selfLeaderboardRow?.problemState?.[problem.id];
+                  const timer = isSelected && (
+                    <>
+                      (
+                      <LiveTimer
+                        start={
+                          problemState?.openTimestamp ??
+                          localOpenProblems.get(problem.id) ??
+                          0
+                        }
+                      />
+                      )
+                    </>
+                  );
                   if (problemState?.status === "solved") {
                     bullet = (
                       <ThemeIcon color="green">
                         <Check />
                       </ThemeIcon>
                     );
+                    statusText = (
+                      <>
+                        Solved!
+                        {problemState?.attempts > 1
+                          ? ` (${problemState.attempts} attempts)`
+                          : null}
+                      </>
+                    );
                   } else if (problemState?.status === "attempted") {
                     bullet = (
                       <ThemeIcon color="red">
                         <X />
                       </ThemeIcon>
+                    );
+                    statusText = (
+                      <>
+                        {problemState.attempts} attempts {timer}
+                      </>
                     );
                   } else if (
                     problemState?.status === "open" ||
@@ -229,6 +268,13 @@ const Competition: React.FC<{
                         <Point />
                       </ThemeIcon>
                     );
+                    statusText = <>Timer started {timer}</>;
+                  } else {
+                    statusText = (
+                      <Text size="xs" color="dimmed">
+                        Unopened
+                      </Text>
+                    );
                   }
                   return (
                     <Timeline.Item
@@ -238,26 +284,28 @@ const Competition: React.FC<{
                       title={
                         <span
                           style={{
-                            fontWeight:
-                              problem.id === selectedProblem?.id
-                                ? "bold"
-                                : null,
+                            fontWeight: isSelected ? "bold" : null,
                           }}
                         >
                           {problem.name}
                         </span>
                       }
                       onClick={() => Router.push(`#${problem.id}`)}
+                      style={{
+                        backgroundColor: isSelected
+                          ? theme.colors.gray[1]
+                          : null,
+                      }}
                     >
+                      <Text size="xs" weight={isSelected ? 600 : null}>
+                        {statusText}
+                      </Text>
                       <Text
                         color="dimmed"
                         size="xs"
-                        weight={selectedProblem?.id === problem.id ? 600 : null}
+                        weight={isSelected ? 600 : null}
                       >
                         {problem.points} points
-                        {problemState?.attempts > 1
-                          ? ` (${problemState.attempts} attempts)`
-                          : null}
                       </Text>
                     </Timeline.Item>
                   );
@@ -270,9 +318,23 @@ const Competition: React.FC<{
       header={
         <Header height={70} p="md">
           <Group position="apart">
-            <UnstyledButton onClick={() => Router.push("/")} mr="lg">
-              <Title>SQL Dojo</Title>
-            </UnstyledButton>
+            <Group>
+              <UnstyledButton onClick={() => Router.push("/")} mr="lg">
+                <Title>SQL Dojo</Title>
+              </UnstyledButton>
+              <UnstyledButton
+                onClick={() => Router.push(`/c/${competition.id}/leaderboard`)}
+                mr="lg"
+              >
+                <Text>Leaderboard</Text>
+              </UnstyledButton>
+              <Badge
+                variant="gradient"
+                gradient={{ from: "indigo", to: "cyan" }}
+              >
+                Your points: {selfLeaderboardRow?.totalPoints ?? 0}
+              </Badge>
+            </Group>
             <HeaderAuth />
           </Group>
         </Header>
@@ -281,9 +343,35 @@ const Competition: React.FC<{
       {selectedProblem ? (
         <Problem
           problem={selectedProblem}
+          status={
+            selfLeaderboardRow?.problemState?.[selectedProblem.id]?.status
+          }
           queryStore={queryStore}
+          onQuery={(query) => {
+            const q = new QueryStore(
+              String(Math.random()),
+              query,
+              selectedProblem.id
+            );
+            setQueryStore((s) =>
+              s.set(
+                selectedProblem.id,
+                (s.get(selectedProblem.id) ?? Immutable.List()).push(q)
+              )
+            );
+          }}
           onValidate={(correct) => {
             optimisticScore(selectedProblem.id, correct);
+          }}
+          onDelete={(queryId) => {
+            setQueryStore((s) =>
+              s.set(
+                selectedProblem.id,
+                (s.get(selectedProblem.id) ?? Immutable.List()).filter(
+                  (q) => q.id !== queryId
+                )
+              )
+            );
           }}
         />
       ) : (

@@ -8,13 +8,17 @@ import remarkGfm from "remark-gfm";
 import useSWR from "swr/immutable";
 import { Terminal } from "tabler-icons-react";
 import { QueryStore } from "../lib/QueryStore";
+import { LeaderboardProblemStatus } from "../lib/types";
 import { Query } from "./Query";
 
 const Problem: React.FC<{
   problem: ProblemModel;
-  queryStore: Map<string, QueryStore[]>;
+  status: LeaderboardProblemStatus | null;
+  queryStore: Immutable.Map<string, Immutable.List<QueryStore>>;
+  onQuery: (query: string) => void;
   onValidate: (result: boolean) => void;
-}> = ({ problem, queryStore, onValidate }) => {
+  onDelete: (id: string) => void;
+}> = ({ problem, status, queryStore, onQuery, onValidate, onDelete }) => {
   const _ = useSWR(`/api/problem/${problem.id}/open`, (path) =>
     fetch(path, { method: "POST" })
   );
@@ -24,7 +28,6 @@ const Problem: React.FC<{
       query: "SELECT",
     },
   });
-  const [nextId, setNextId] = React.useState(1);
   const scrollToBottom = React.useCallback(() => {
     // After React update..
     setTimeout(() => {
@@ -33,13 +36,7 @@ const Problem: React.FC<{
   }, [queryViewport]);
   const onSubmit = React.useCallback(
     (e: any) => {
-      if (!queryStore.has(problem.id)) {
-        queryStore.set(problem.id, []);
-      }
-      queryStore
-        .get(problem.id)
-        .push(new QueryStore(String(nextId), form.values.query, problem.id));
-      setNextId((c) => c + 1);
+      onQuery(form.values.query);
       scrollToBottom();
       e.preventDefault();
     },
@@ -87,7 +84,7 @@ const Problem: React.FC<{
             </Title>
           </Box>
           <div style={{ flexGrow: 1, overflowY: "auto" }} ref={queryViewport}>
-            {!queries?.length ? (
+            {!queries?.size ? (
               <Text m="sm">Enter a query below to get started!</Text>
             ) : (
               queries.map((query, i) => (
@@ -98,40 +95,41 @@ const Problem: React.FC<{
                   <Query
                     query={query}
                     onComplete={scrollToBottom}
-                    onDelete={() => {
-                      queryStore.get(problem.id).splice(i, 1);
-                      setNextId((c) => c + 1);
-                    }}
+                    onDelete={() => onDelete(query.id)}
                     onSubmit={onValidate}
                   />
                 </div>
               ))
             )}
           </div>
-          <Box
-            sx={(theme) => ({ borderTop: `1px solid ${theme.colors.gray[3]}` })}
-            p="sm"
-          >
-            <form onSubmit={onSubmit}>
-              <Textarea
-                label="Type in a PostgreSQL SELECT query"
-                placeholder="Query"
-                autosize
-                minRows={2}
-                maxRows={10}
-                styles={{ input: { fontFamily: "Menlo, monospace" } }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && e.metaKey) {
-                    onSubmit(e);
-                  }
-                }}
-                {...form.getInputProps("query")}
-              />
-              <Group position="right" mt="md">
-                <Button type="submit">Execute</Button>
-              </Group>
-            </form>
-          </Box>
+          {status !== "solved" && (
+            <Box
+              sx={(theme) => ({
+                borderTop: `1px solid ${theme.colors.gray[3]}`,
+              })}
+              p="sm"
+            >
+              <form onSubmit={onSubmit}>
+                <Textarea
+                  label="Type in a PostgreSQL SELECT query"
+                  placeholder="Query"
+                  autosize
+                  minRows={2}
+                  maxRows={10}
+                  styles={{ input: { fontFamily: "Menlo, monospace" } }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && e.metaKey) {
+                      onSubmit(e);
+                    }
+                  }}
+                  {...form.getInputProps("query")}
+                />
+                <Group position="right" mt="md">
+                  <Button type="submit">Execute</Button>
+                </Group>
+              </form>
+            </Box>
+          )}
         </Box>
       </ResizePanel>
     </div>
