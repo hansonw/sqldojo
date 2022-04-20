@@ -8,7 +8,6 @@ export function LiveTimer({ start }: { start: number }) {
   }, []);
   let mins = Math.floor((time - start) / 1000 / 60);
   let secs = Math.floor((time - start) / 1000) % 60;
-  let prefix = null;
   if (mins >= 60) {
     mins = 60;
     secs = 0;

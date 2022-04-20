@@ -81,6 +81,7 @@ export default async function handler(req, res) {
       },
     });
   } catch (e) {
+    console.error("[verify] Error: ", e);
     res.status(400).json({ error: String(e) });
   }
   await Promise.all([client.end(), solutionsClient.end()]);

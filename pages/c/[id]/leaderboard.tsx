@@ -1,7 +1,17 @@
-import { Container, Table, Title } from "@mantine/core";
+import {
+  Avatar,
+  Badge,
+  Box,
+  Center,
+  Table,
+  ThemeIcon,
+  Title,
+  Tooltip,
+} from "@mantine/core";
 import { Problem } from "@prisma/client";
 import type { GetServerSidePropsContext } from "next";
 import useSWR from "swr";
+import { Check, Point, X } from "tabler-icons-react";
 import { getLeaderboard } from "../../../lib/leaderboard";
 import prisma from "../../../lib/prisma";
 import type { LeaderboardResponse } from "../../../lib/types";
@@ -45,12 +55,34 @@ export default function Leaderboard({
   const leaderboard = useSWR<LeaderboardResponse>(
     `/api/c/${competitionId}/leaderboard`,
     (key) => fetch(key).then((r) => r.json()),
-    { fallbackData: initialLeaderboard, revalidateOnMount: false }
+    {
+      fallbackData: initialLeaderboard,
+      revalidateOnMount: false,
+      refreshInterval: 3000,
+    }
   );
   return (
-    <Container>
-      <Title>Leaderboard</Title>
+    <Box
+      p="lg"
+      style={{
+        height: "calc(100vh)",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+      }}
+    >
+      <Center mb="md">
+        <Title>Leaderboard</Title>
+      </Center>
       <Table horizontalSpacing={2} verticalSpacing={2}>
+        <style jsx>{`
+          th:not(:first-child) {
+            text-align: center;
+          }
+          td:not(:first-child) {
+            text-align: center;
+          }
+        `}</style>
         <thead>
           <tr>
             <th>User</th>
@@ -58,22 +90,71 @@ export default function Leaderboard({
               <th key={i}>{p.name}</th>
             ))}
             <th>Points</th>
-            <th>Time</th>
+            <th>Time (m)</th>
           </tr>
         </thead>
         <tbody>
           {leaderboard.data?.ranking?.map((row, i) => (
             <tr key={i}>
-              <td>{row.userName}</td>
-              {problems.map((p, j) => (
-                <td key={j}>{row.problemState[p.id]?.status}</td>
-              ))}
+              <td>
+                <Center inline>
+                  <Avatar src={row.userImage} size="sm" radius="xl" m="xs" />{" "}
+                  {row.userName}
+                </Center>
+              </td>
+              {problems.map((p, j) => {
+                let icon = null;
+                const state = row.problemState[p.id];
+                switch (state?.status) {
+                  case "open":
+                    icon = (
+                      <Tooltip label="Opened">
+                        <ThemeIcon color="blue" radius={16}>
+                          <Point />
+                        </ThemeIcon>
+                      </Tooltip>
+                    );
+                    break;
+                  case "attempted":
+                    icon = (
+                      <Tooltip label="Attempted">
+                        <ThemeIcon color="red" radius={16}>
+                          <X />
+                        </ThemeIcon>
+                      </Tooltip>
+                    );
+                    break;
+                  case "solved":
+                    icon = (
+                      <Tooltip label="Solved">
+                        <ThemeIcon color="green" radius={16}>
+                          <Check />
+                        </ThemeIcon>
+                      </Tooltip>
+                    );
+                    break;
+                }
+                let attempts = null;
+                if (state?.attempts) {
+                  attempts = (
+                    <Tooltip label="Penalties" style={{ position: "absolute" }}>
+                      <Badge size="xs">{state.attempts}</Badge>
+                    </Tooltip>
+                  );
+                }
+                return (
+                  <td key={j}>
+                    {icon}
+                    {attempts}
+                  </td>
+                );
+              })}
               <td>{row.totalPoints}</td>
-              <td>{row.totalTimeSecs}</td>
+              <td>{Math.round(row.totalTimeSecs / 60)}</td>
             </tr>
           ))}
         </tbody>
       </Table>
-    </Container>
+    </Box>
   );
 }

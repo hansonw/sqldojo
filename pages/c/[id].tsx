@@ -69,12 +69,13 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     prisma.problemSubmission.findMany({
       where: {
         problem: problemFilter,
+        userId: user.id,
       },
       orderBy: {
         createdAt: "asc",
       },
     }),
-    getLeaderboard(user, competition.id, false),
+    getLeaderboard(user, competition.id, true),
   ]);
   return {
     props: {
@@ -122,7 +123,7 @@ const Competition: React.FC<{
       selfLeaderboardRow.problemState[problemId] = {
         openTimestamp,
         ...existingState,
-        attempts: (existingState?.attempts ?? 0) + 1,
+        attempts: (existingState?.attempts ?? 0) + (correct ? 0 : 1),
         solveTimeSecs: correct ? submissionTime : 0,
         status: correct ? "solved" : "attempted",
       };
@@ -182,9 +183,10 @@ const Competition: React.FC<{
           hiddenBreakpoint="sm"
           hidden // NOTE: only actually hides on hiddenBreakpoint
           width={{ sm: showNavbar ? 300 : 32, lg: showNavbar ? 300 : 32 }}
+          style={{ overflowY: "auto" }}
         >
           <ActionIcon
-            style={{ position: "absolute", right: 0, top: "50%" }}
+            style={{ position: "absolute", right: 0, top: "50%", zIndex: 99 }}
             onClick={() => setShowNavbar(!showNavbar)}
           >
             {showNavbar ? <ChevronLeft /> : <ChevronRight />}
@@ -243,8 +245,8 @@ const Competition: React.FC<{
                     statusText = (
                       <>
                         Solved!
-                        {problemState?.attempts > 1
-                          ? ` (${problemState.attempts} attempts)`
+                        {problemState?.attempts
+                          ? ` (${problemState.attempts}x penalty)`
                           : null}
                       </>
                     );

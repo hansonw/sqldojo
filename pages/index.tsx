@@ -13,7 +13,7 @@ import {
 } from "@mantine/core";
 import { Competition as CompetitionModel, User } from "@prisma/client";
 import { GetServerSidePropsContext } from "next";
-import { getSession, signIn } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import Router from "next/router";
 import React from "react";
 import HeaderAuth from "../components/HeaderAuth";

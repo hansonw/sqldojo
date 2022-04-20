@@ -4,6 +4,7 @@ import {
   INCORRECT_PENALTY_SECS,
   LeaderboardResponse,
   LeaderboardRow,
+  MAX_TIME_SECS,
 } from "./types";
 
 export async function getLeaderboard(
@@ -19,15 +20,17 @@ export async function getLeaderboard(
         name: true,
         image: true,
       },
-      where: {
-        problemOpens: {
-          some: {
-            problem: {
-              competitionId,
+      where: selfOnly
+        ? { id: user.id }
+        : {
+            problemOpens: {
+              some: {
+                problem: {
+                  competitionId,
+                },
+              },
             },
           },
-        },
-      },
     }),
     prisma.problemOpen.findMany({
       where: {
@@ -57,9 +60,6 @@ export async function getLeaderboard(
     }),
   ]);
   const users: Map<string, LeaderboardRow> = new Map();
-  if (!participants.find((p) => p.id === user.id)) {
-    participants.push(user);
-  }
   for (const user of participants) {
     users.set(user.id, {
       userImage: user.image,
@@ -87,9 +87,10 @@ export async function getLeaderboard(
       continue;
     }
     const problemState = user.problemState[submission.problemId];
-    problemState.attempts += 1;
-    const submissionTime =
-      (submission.createdAt.getTime() - problemState.openTimestamp) / 1000;
+    const submissionTime = Math.min(
+      MAX_TIME_SECS,
+      (submission.createdAt.getTime() - problemState.openTimestamp) / 1000
+    );
     if (submission.correct) {
       if (problemState.status !== "solved") {
         // note: we ordered by correct, so all failures have been processed
@@ -98,10 +99,11 @@ export async function getLeaderboard(
         user.totalPoints += submission.problem.points;
         user.totalTimeSecs +=
           problemState.solveTimeSecs +
-          (problemState.attempts - 1) * INCORRECT_PENALTY_SECS;
+          problemState.attempts * INCORRECT_PENALTY_SECS;
       }
     } else {
       problemState.status = "attempted";
+      problemState.attempts += 1;
     }
   }
   // points descending, time ascending

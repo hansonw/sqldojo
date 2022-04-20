@@ -23,6 +23,7 @@ export default async function handler(req, res) {
     });
     res.status(200).json(result);
   } catch (e) {
+    console.error("[open] Error: ", e);
     res.status(400).json({ error: String(e) });
   }
 }

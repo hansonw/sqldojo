@@ -1,4 +1,5 @@
 export const INCORRECT_PENALTY_SECS = 300;
+export const MAX_TIME_SECS = 3600;
 
 export type LeaderboardProblemStatus = "open" | "attempted" | "solved";
 

@@ -47,6 +47,7 @@ export default async function handler(req, res) {
       },
     });
   } catch (e) {
+    console.error("[query] Error: ", e);
     res.status(200).json({ error: String(e) });
   }
   await client.end();
