@@ -1,5 +1,6 @@
 import pg from "pg";
 import getRawBody from "raw-body";
+import { getSolutionColumns } from "../../../../lib/contestDB";
 import prisma from "../../../../lib/prisma";
 import { getUser } from "../../../../lib/util";
 
@@ -33,10 +34,14 @@ export default async function handler(req, res) {
   try {
     await client.connect();
     const queryBody = body.toString("utf8");
-    const result = await client.query(queryBody);
+    const [result, solutionColumns] = await Promise.all([
+      client.query(queryBody),
+      getSolutionColumns(problem.dbName),
+    ]);
     res.status(200).json({
       rows: result.rows.slice(0, 100),
       columns: result.fields.map((x) => x.name),
+      solutionColumns,
       count: result.rows.length,
     });
     await prisma.problemQuery.create({

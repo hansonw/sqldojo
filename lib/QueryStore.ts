@@ -8,8 +8,20 @@ export enum AnswerState {
 }
 
 export type QueryResult =
-  | { rows: undefined; columns: undefined; count: undefined; error: string }
-  | { rows: any[]; columns: string[]; count: number; error: undefined };
+  | {
+      rows: undefined;
+      columns: undefined;
+      solutionColumns: undefined;
+      count: undefined;
+      error: string;
+    }
+  | {
+      rows: any[];
+      columns: string[];
+      solutionColumns: string[];
+      count: number;
+      error: undefined;
+    };
 
 export class QueryStore {
   id: string;

@@ -10,6 +10,7 @@ import {
   Sx,
   Table,
   Text,
+  Tooltip,
   UnstyledButton,
 } from "@mantine/core";
 import { Prism } from "@mantine/prism";
@@ -18,7 +19,7 @@ import useSWR from "swr";
 import { Trash } from "tabler-icons-react";
 import { AnswerState, QueryStore } from "../lib/QueryStore";
 
-function SubmitButton({ answerState, onSubmit }) {
+function SubmitButton({ answerState, disabled = false, onSubmit }) {
   const buttonStyle: Sx = {
     borderRadius: 4,
     flexGrow: 1,
@@ -36,6 +37,7 @@ function SubmitButton({ answerState, onSubmit }) {
           onClose={() => setShowConfirm(false)}
           target={
             <Button
+              disabled={disabled}
               type="submit"
               onClick={() => setShowConfirm(true)}
               style={{ width: "100%" }}
@@ -175,7 +177,7 @@ export function Query({
       </Stack>
     );
   } else {
-    const { rows, columns, count } = swr.data;
+    const { rows, columns, solutionColumns, count } = swr.data;
     if (rows.length === 0 || columns.length === 0) {
       content = (
         <Stack>
@@ -193,6 +195,32 @@ export function Query({
         </Stack>
       );
     } else {
+      solutionColumns.sort();
+      columns.sort();
+      const solutionSchema = JSON.stringify(solutionColumns);
+      const submitDisabled = JSON.stringify(columns) !== solutionSchema;
+      let submitButton = (
+        <SubmitButton
+          disabled={submitDisabled}
+          answerState={answerState}
+          onSubmit={() => {
+            verify().then((state) => {
+              if (state !== AnswerState.Error) {
+                onSubmit(state === AnswerState.Correct);
+              }
+            });
+          }}
+        />
+      );
+      if (submitDisabled) {
+        submitButton = (
+          <Tooltip
+            label={`Incorrect schema. Columns should be ${solutionSchema}`}
+          >
+            {submitButton}
+          </Tooltip>
+        );
+      }
       content = (
         <Stack>
           <div style={{ maxWidth: "100%", overflowX: "auto" }}>
@@ -221,16 +249,7 @@ export function Query({
             </Alert>
           )}
           <Group>
-            <SubmitButton
-              answerState={answerState}
-              onSubmit={() => {
-                verify().then((state) => {
-                  if (state !== AnswerState.Error) {
-                    onSubmit(state === AnswerState.Correct);
-                  }
-                });
-              }}
-            />
+            {submitButton}
             {answerState == null && (
               <ActionIcon
                 variant="outline"
