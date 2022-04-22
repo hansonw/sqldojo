@@ -14,7 +14,12 @@ import {
   UnstyledButton,
   useMantineTheme,
 } from "@mantine/core";
-import { Competition, Problem, ProblemSubmission } from "@prisma/client";
+import {
+  Competition,
+  Problem,
+  ProblemQuery,
+  ProblemSubmission,
+} from "@prisma/client";
 import Immutable from "immutable";
 import { GetServerSidePropsContext } from "next";
 import dynamic from "next/dynamic";
@@ -61,27 +66,34 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   const problemFilter = {
     competitionId: competition.id,
   };
-  const [problems, submissions, initialLeaderboard] = await Promise.all([
-    prisma.problem.findMany({
-      where: problemFilter,
-      orderBy: [{ points: "asc" }, { id: "asc" }],
-    }),
-    prisma.problemSubmission.findMany({
-      where: {
-        problem: problemFilter,
-        userId: user.id,
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
-    }),
-    getLeaderboard(user, competition.id, true),
-  ]);
+  const [problems, submissions, queries, initialLeaderboard] =
+    await Promise.all([
+      prisma.problem.findMany({
+        where: problemFilter,
+        orderBy: [{ points: "asc" }, { id: "asc" }],
+      }),
+      prisma.problemSubmission.findMany({
+        where: {
+          problem: problemFilter,
+          userId: user.id,
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.problemQuery.findMany({
+        where: {
+          problem: problemFilter,
+          userId: user.id,
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      getLeaderboard(user, competition.id, true),
+    ]);
   return {
     props: {
       competition: serializePrisma(competition),
       problems,
       submissions: serializePrisma(submissions),
+      queries: serializePrisma(queries),
       initialLeaderboard,
     },
   };
@@ -91,8 +103,9 @@ const Competition: React.FC<{
   competition: Competition;
   problems: Problem[];
   submissions: ProblemSubmission[];
+  queries: ProblemQuery[];
   initialLeaderboard: LeaderboardResponse;
-}> = ({ competition, problems, submissions, initialLeaderboard }) => {
+}> = ({ competition, problems, submissions, queries, initialLeaderboard }) => {
   const theme = useMantineTheme();
   const [showNavbar, setShowNavbar] = React.useState(true);
   const [selectedProblem, setProblem] = React.useState<Problem | null>(null);
@@ -150,16 +163,26 @@ const Competition: React.FC<{
   }, []);
 
   const [queryStore, setQueryStore] = React.useState(() => {
-    let map = Immutable.Map<string, Immutable.List<QueryStore>>();
-    for (const submission of submissions) {
-      map = map.set(
-        submission.problemId,
-        (map.get(submission.problemId) ?? Immutable.List<QueryStore>()).push(
-          QueryStore.fromSubmission(submission)
-        )
-      );
+    let map = new Map<string, QueryStore[]>();
+    for (const query of queries) {
+      let list = map.get(query.problemId);
+      if (!list) {
+        list = [];
+        map.set(query.problemId, list);
+      }
+      list.push(QueryStore.fromProblemQuery(query));
     }
-    return map;
+    for (const submission of submissions) {
+      let list = map.get(submission.problemId);
+      if (!list) {
+        list = [];
+        map.set(submission.problemId, list);
+      }
+      list.push(QueryStore.fromSubmission(submission));
+    }
+    return Immutable.Map(
+      Array.from(map.entries()).map(([k, v]) => [k, Immutable.List(v)])
+    );
   });
 
   return (

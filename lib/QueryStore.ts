@@ -1,4 +1,4 @@
-import { ProblemSubmission } from "@prisma/client";
+import { ProblemQuery, ProblemSubmission } from "@prisma/client";
 
 export enum AnswerState {
   Waiting,
@@ -48,6 +48,16 @@ export class QueryStore {
     res._answerState = Promise.resolve(
       submission.correct ? AnswerState.Correct : AnswerState.Incorrect
     );
+    return res;
+  }
+
+  static fromProblemQuery(submission: ProblemQuery): QueryStore {
+    const res = new QueryStore(
+      submission.id,
+      submission.query,
+      submission.problemId
+    );
+    res._hideResult = true;
     return res;
   }
 

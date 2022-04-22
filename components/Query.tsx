@@ -178,7 +178,11 @@ export function Query({
   const queryStr = query.query;
   const [showResult, setShowResult] = React.useState(!query._hideResult);
   const swr = useSWR(showResult ? `${query.problemId}:${query.id}` : null, () =>
-    query.getResults().finally(onComplete)
+    query.getResults().finally(() => {
+      if (!query._hideResult) {
+        onComplete();
+      }
+    })
   );
 
   const [answerState, setAnswerState] = React.useState<AnswerState | null>(
@@ -207,7 +211,9 @@ export function Query({
         <Button variant="outline" onClick={() => setShowResult(true)} fullWidth>
           Show result
         </Button>
-        <SubmitButton answerState={answerState} onSubmit={() => {}} />
+        {answerState != null && (
+          <SubmitButton answerState={answerState} onSubmit={() => {}} />
+        )}
       </Stack>
     );
   } else if (data == null) {
