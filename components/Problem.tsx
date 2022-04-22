@@ -36,7 +36,7 @@ const Problem: React.FC<{
   const scrollToBottom = React.useCallback(() => {
     // After React update..
     setTimeout(() => {
-      queryViewport.current.scrollTo(0, queryViewport.current.scrollHeight);
+      queryViewport.current?.scrollTo(0, queryViewport.current.scrollHeight);
     }, 0);
   }, [queryViewport]);
   const onSubmit = React.useCallback(
@@ -120,7 +120,7 @@ function QueryEditor({ onSubmit }) {
       query: "SELECT",
     },
   });
-  function onFormSubmit(e: React.UIEvent) {
+  function onFormSubmit(e: any) {
     onSubmit(form.values.query);
     e.preventDefault();
   }
@@ -131,7 +131,7 @@ function QueryEditor({ onSubmit }) {
       })}
       p="sm"
     >
-      <form onSubmit={onSubmit}>
+      <form onSubmit={onFormSubmit}>
         <CodeEditor
           value={form.values.query}
           onValueChange={(value) => form.setFieldValue("query", value)}

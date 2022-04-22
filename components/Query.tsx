@@ -262,9 +262,9 @@ export function Query({
               <tbody>
                 {rows.map((row, i) => (
                   <tr key={i}>
-                    {columns.map((col, j) => (
+                    {row.map((val, j) => (
                       <td key={j}>
-                        <Cell value={row[col]} />
+                        <Cell value={val} />
                       </td>
                     ))}
                   </tr>

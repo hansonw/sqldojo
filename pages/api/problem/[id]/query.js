@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     await client.connect();
     const queryBody = body.toString("utf8");
     const [result, solutionColumns] = await Promise.all([
-      client.query(queryBody),
+      client.query({ text: queryBody, rowMode: "array" }),
       getSolutionColumns(problem.dbName),
     ]);
     res.status(200).json({

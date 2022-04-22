@@ -1,7 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import LRU from "lru-cache";
 import { getLeaderboard } from "../../../../lib/leaderboard";
 import { LeaderboardResponse } from "../../../../lib/types";
 import { getUser } from "../../../../lib/util";
+
+const _cache = new LRU({ max: 10, ttl: 3000 });
 
 export default async function handler(
   req: NextApiRequest,
@@ -13,18 +16,18 @@ export default async function handler(
     return;
   }
   try {
+    const id = req.query.id as string;
+    let result = null;
     if (!req.query.self) {
-      res.setHeader("Cache-Control", "public, s-maxage=5");
+      result = _cache.get(id);
+      if (result == null) {
+        result = getLeaderboard(user, id, false);
+        _cache.set(id, result);
+      }
+    } else {
+      result = getLeaderboard(user, id, true);
     }
-    res
-      .status(200)
-      .json(
-        await getLeaderboard(
-          user,
-          req.query.id as string,
-          Boolean(req.query.self)
-        )
-      );
+    res.status(200).json(await result);
   } catch (e) {
     console.error("[leaderboard] Error: ", e);
     res.status(400).end();
