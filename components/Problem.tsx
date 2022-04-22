@@ -29,16 +29,10 @@ const Problem: React.FC<{
   onValidate: (result: boolean) => void;
   onDelete: (id: string) => void;
 }> = ({ problem, status, queryStore, onQuery, onValidate, onDelete }) => {
-  const theme = useMantineTheme();
   const _ = useSWR(`/api/problem/${problem.id}/open`, (path) =>
     fetch(path, { method: "POST" })
   );
   const queryViewport = useRef<HTMLDivElement>();
-  const form = useForm({
-    initialValues: {
-      query: "SELECT",
-    },
-  });
   const scrollToBottom = React.useCallback(() => {
     // After React update..
     setTimeout(() => {
@@ -46,12 +40,11 @@ const Problem: React.FC<{
     }, 0);
   }, [queryViewport]);
   const onSubmit = React.useCallback(
-    (e: any) => {
-      onQuery(form.values.query);
+    (query: string) => {
+      onQuery(query);
       scrollToBottom();
-      e.preventDefault();
     },
-    [form, scrollToBottom]
+    [scrollToBottom]
   );
   const queries = queryStore.get(problem.id);
   return (
@@ -113,40 +106,54 @@ const Problem: React.FC<{
               ))
             )}
           </div>
-          {status !== "solved" && (
-            <Box
-              sx={(theme) => ({
-                borderTop: `1px solid ${theme.colors.gray[3]}`,
-              })}
-              p="sm"
-            >
-              <form onSubmit={onSubmit}>
-                <CodeEditor
-                  value={form.values.query}
-                  onValueChange={(value) => form.setFieldValue("query", value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && e.metaKey) {
-                      onSubmit(e);
-                    }
-                  }}
-                  highlight={(code) => highlight(code, languages.sql)}
-                  padding={4}
-                  className="code-editor"
-                  style={{
-                    border: `1px solid ${theme.colors.gray[4]}`,
-                    borderRadius: 4,
-                  }}
-                />
-                <Group position="right" mt="md">
-                  <Button type="submit">Execute</Button>
-                </Group>
-              </form>
-            </Box>
-          )}
+          {status !== "solved" && <QueryEditor onSubmit={onSubmit} />}
         </Box>
       </ResizePanel>
     </div>
   );
 };
+
+function QueryEditor({ onSubmit }) {
+  const theme = useMantineTheme();
+  const form = useForm({
+    initialValues: {
+      query: "SELECT",
+    },
+  });
+  function onFormSubmit(e: React.UIEvent) {
+    onSubmit(form.values.query);
+    e.preventDefault();
+  }
+  return (
+    <Box
+      sx={(theme) => ({
+        borderTop: `1px solid ${theme.colors.gray[3]}`,
+      })}
+      p="sm"
+    >
+      <form onSubmit={onSubmit}>
+        <CodeEditor
+          value={form.values.query}
+          onValueChange={(value) => form.setFieldValue("query", value)}
+          onKeyDown={(e: React.KeyboardEvent) => {
+            if (e.key === "Enter" && e.metaKey) {
+              onFormSubmit(e);
+            }
+          }}
+          highlight={(code) => highlight(code, languages.sql)}
+          padding={4}
+          className="code-editor"
+          style={{
+            border: `1px solid ${theme.colors.gray[4]}`,
+            borderRadius: 4,
+          }}
+        />
+        <Group position="right" mt="md">
+          <Button type="submit">Execute</Button>
+        </Group>
+      </form>
+    </Box>
+  );
+}
 
 export default Problem;

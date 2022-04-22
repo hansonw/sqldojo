@@ -90,7 +90,7 @@ export default function Leaderboard({
               <th key={i}>{p.name}</th>
             ))}
             <th>Points</th>
-            <th>Time (m)</th>
+            <th>Time (min)</th>
           </tr>
         </thead>
         <tbody>
@@ -126,7 +126,11 @@ export default function Leaderboard({
                     break;
                   case "solved":
                     icon = (
-                      <Tooltip label="Solved">
+                      <Tooltip
+                        label={`Solved in ${
+                          Math.round((state.solveTimeSecs / 60) * 10) / 10
+                        } mins`}
+                      >
                         <ThemeIcon color="green" radius={16}>
                           <Check />
                         </ThemeIcon>

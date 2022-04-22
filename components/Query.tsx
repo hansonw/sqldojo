@@ -20,7 +20,7 @@ import useSWR from "swr";
 import { Trash } from "tabler-icons-react";
 import { AnswerState, QueryStore } from "../lib/QueryStore";
 
-function SubmitButton({ answerState, disabled = false, onSubmit }) {
+function SubmitButton({ answerState, error = null, onSubmit }) {
   const buttonStyle: Sx = {
     borderRadius: 4,
     flexGrow: 1,
@@ -38,7 +38,6 @@ function SubmitButton({ answerState, disabled = false, onSubmit }) {
           onClose={() => setShowConfirm(false)}
           target={
             <Button
-              disabled={disabled}
               type="submit"
               onClick={() => setShowConfirm(true)}
               style={{ width: "100%" }}
@@ -52,20 +51,26 @@ function SubmitButton({ answerState, disabled = false, onSubmit }) {
           width={260}
           position="top"
         >
-          <Text weight={500}>Are you sure?</Text>
-          <Text>Incorrect submissions will add a 5 minute time penalty.</Text>
-          <Group mt="sm">
-            <Button type="submit" onClick={onSubmit}>
-              Submit
-            </Button>
-            <Button
-              type="reset"
-              variant="outline"
-              onClick={() => setShowConfirm(false)}
-            >
-              Cancel
-            </Button>
-          </Group>
+          {error ?? (
+            <>
+              <Text weight={500}>Are you sure?</Text>
+              <Text>
+                Incorrect submissions will add a 5 minute time penalty.
+              </Text>
+              <Group mt="sm">
+                <Button type="submit" onClick={onSubmit}>
+                  Submit
+                </Button>
+                <Button
+                  type="reset"
+                  variant="outline"
+                  onClick={() => setShowConfirm(false)}
+                >
+                  Cancel
+                </Button>
+              </Group>
+            </>
+          )}
         </Popover>
       );
     case AnswerState.Waiting:
@@ -243,28 +248,6 @@ export function Query({
       const solutionSchema = JSON.stringify(Array.from(solutionColumns).sort());
       const submitDisabled =
         JSON.stringify(Array.from(columns).sort()) !== solutionSchema;
-      let submitButton = (
-        <SubmitButton
-          disabled={submitDisabled}
-          answerState={answerState}
-          onSubmit={() => {
-            verify().then((state) => {
-              if (state !== AnswerState.Error) {
-                onSubmit(state === AnswerState.Correct);
-              }
-            });
-          }}
-        />
-      );
-      if (submitDisabled && !query._hideResult) {
-        submitButton = (
-          <Tooltip
-            label={`Incorrect schema. Columns should be ${solutionSchema}`}
-          >
-            {submitButton}
-          </Tooltip>
-        );
-      }
       content = (
         <Stack>
           <div style={{ maxWidth: "100%", overflowX: "auto" }}>
@@ -295,7 +278,20 @@ export function Query({
             </Alert>
           )}
           <Group>
-            {submitButton}
+            <SubmitButton
+              answerState={answerState}
+              error={
+                submitDisabled &&
+                `Incorrect schema! Expected these columns: ${solutionSchema}`
+              }
+              onSubmit={() => {
+                verify().then((state) => {
+                  if (state !== AnswerState.Error) {
+                    onSubmit(state === AnswerState.Correct);
+                  }
+                });
+              }}
+            />
             {answerState == null && (
               <ActionIcon
                 variant="outline"
