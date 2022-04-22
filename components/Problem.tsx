@@ -33,19 +33,16 @@ const Problem: React.FC<{
     fetch(path, { method: "POST" })
   );
   const queryViewport = useRef<HTMLDivElement>();
-  const scrollToBottom = React.useCallback(() => {
+  function scrollToBottom() {
     // After React update..
     setTimeout(() => {
       queryViewport.current?.scrollTo(0, queryViewport.current.scrollHeight);
     }, 0);
-  }, [queryViewport]);
-  const onSubmit = React.useCallback(
-    (query: string) => {
-      onQuery(query);
-      scrollToBottom();
-    },
-    [scrollToBottom]
-  );
+  }
+  function onSubmit(query: string) {
+    onQuery(query);
+    scrollToBottom();
+  }
   const queries = queryStore.get(problem.id);
   return (
     <div

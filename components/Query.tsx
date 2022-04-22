@@ -51,7 +51,9 @@ function SubmitButton({ answerState, error = null, onSubmit }) {
           width={260}
           position="top"
         >
-          {error ?? (
+          {error ? (
+            error
+          ) : (
             <>
               <Text weight={500}>Are you sure?</Text>
               <Text>
@@ -281,8 +283,9 @@ export function Query({
             <SubmitButton
               answerState={answerState}
               error={
-                submitDisabled &&
-                `Incorrect schema! Expected these columns: ${solutionSchema}`
+                submitDisabled
+                  ? `Incorrect schema! Expected these columns: ${solutionSchema}`
+                  : null
               }
               onSubmit={() => {
                 verify().then((state) => {
