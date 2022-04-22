@@ -12,6 +12,7 @@ import {
   Text,
   Tooltip,
   UnstyledButton,
+  useMantineTheme,
 } from "@mantine/core";
 import { Prism } from "@mantine/prism";
 import React from "react";
@@ -112,6 +113,50 @@ function SubmitButton({ answerState, disabled = false, onSubmit }) {
   }
 }
 
+function Cell({ value }) {
+  const theme = useMantineTheme();
+  if (value == null) {
+    return (
+      <code
+        style={{
+          borderRadius: 4,
+          background: theme.colors.gray[1],
+          padding: 2,
+        }}
+      >
+        null
+      </code>
+    );
+  }
+  if (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}T[0-9:.]+Z$/.test(value)
+  ) {
+    // NOTE: AWS/Vercel use UTC timezones so this is OK
+    let date = new Date(value).toLocaleString("en-US", { timeZone: "UTC" });
+    let title = "timestamp";
+    if (date.includes("12:00:00 AM")) {
+      date = date.replace(", 12:00:00 AM", "");
+      title = "date";
+    }
+    return (
+      <Tooltip label={title}>
+        <span
+          style={{
+            borderRadius: 4,
+            background: theme.colors.blue[1],
+            padding: 2,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {date}
+        </span>
+      </Tooltip>
+    );
+  }
+  return value;
+}
+
 export function Query({
   query,
   onComplete,
@@ -195,10 +240,9 @@ export function Query({
         </Stack>
       );
     } else {
-      solutionColumns.sort();
-      columns.sort();
-      const solutionSchema = JSON.stringify(solutionColumns);
-      const submitDisabled = JSON.stringify(columns) !== solutionSchema;
+      const solutionSchema = JSON.stringify(Array.from(solutionColumns).sort());
+      const submitDisabled =
+        JSON.stringify(Array.from(columns).sort()) !== solutionSchema;
       let submitButton = (
         <SubmitButton
           disabled={submitDisabled}
@@ -212,7 +256,7 @@ export function Query({
           }}
         />
       );
-      if (submitDisabled) {
+      if (submitDisabled && !query._hideResult) {
         submitButton = (
           <Tooltip
             label={`Incorrect schema. Columns should be ${solutionSchema}`}
@@ -224,7 +268,7 @@ export function Query({
       content = (
         <Stack>
           <div style={{ maxWidth: "100%", overflowX: "auto" }}>
-            <Table horizontalSpacing={2} verticalSpacing={2} striped>
+            <Table horizontalSpacing={8} verticalSpacing={2} striped>
               <thead>
                 <tr>
                   {columns.map((key, i) => (
@@ -235,8 +279,10 @@ export function Query({
               <tbody>
                 {rows.map((row, i) => (
                   <tr key={i}>
-                    {Object.values(row).map((value, j) => (
-                      <td key={j}>{value}</td>
+                    {columns.map((col, j) => (
+                      <td key={j}>
+                        <Cell value={row[col]} />
+                      </td>
                     ))}
                   </tr>
                 ))}
