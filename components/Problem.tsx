@@ -2,6 +2,7 @@ import {
   Box,
   Button,
   Group,
+  Modal,
   Text,
   Title,
   useMantineTheme,
@@ -19,6 +20,7 @@ import useSWR from "swr/immutable";
 import { Terminal } from "tabler-icons-react";
 import { QueryStore } from "../lib/QueryStore";
 import { LeaderboardProblemStatus } from "../lib/types";
+import CodexModal from "./CodexModal";
 import { Query } from "./Query";
 
 const Problem: React.FC<{
@@ -103,20 +105,23 @@ const Problem: React.FC<{
               ))
             )}
           </div>
-          {status !== "solved" && <QueryEditor onSubmit={onSubmit} />}
+          {status !== "solved" && (
+            <QueryEditor onSubmit={onSubmit} problem={problem} />
+          )}
         </Box>
       </ResizePanel>
     </div>
   );
 };
 
-function QueryEditor({ onSubmit }) {
+function QueryEditor({ onSubmit, problem }) {
   const theme = useMantineTheme();
   const form = useForm({
     initialValues: {
       query: "SELECT",
     },
   });
+  const [showCodex, setShowCodex] = React.useState(false);
   function onFormSubmit(e: any) {
     onSubmit(form.values.query);
     e.preventDefault();
@@ -145,10 +150,21 @@ function QueryEditor({ onSubmit }) {
             borderRadius: 4,
           }}
         />
-        <Group position="right" mt="md">
+        <Group position="apart" mt="md">
+          <Button variant="light" onClick={() => setShowCodex(true)}>
+            Ask OpenAI Codex
+          </Button>
           <Button type="submit">Execute</Button>
         </Group>
       </form>
+      <Modal
+        opened={showCodex}
+        onClose={() => setShowCodex(false)}
+        title={<Title>Ask OpenAI Codex</Title>}
+        size="full"
+      >
+        <CodexModal problem={problem} />
+      </Modal>
     </Box>
   );
 }
