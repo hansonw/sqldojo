@@ -1,3 +1,21 @@
+import { closeBracketsKeymap } from "@codemirror/autocomplete";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { PostgreSQL, sql } from "@codemirror/lang-sql";
+import {
+  bracketMatching,
+  defaultHighlightStyle,
+  indentOnInput,
+  indentService,
+  syntaxHighlighting,
+} from "@codemirror/language";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import { EditorState } from "@codemirror/state";
+import {
+  drawSelection,
+  EditorView,
+  highlightActiveLine,
+  keymap,
+} from "@codemirror/view";
 import {
   Box,
   Button,
@@ -8,13 +26,12 @@ import {
   useMantineTheme,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { useColorScheme } from "@mantine/hooks";
 import { Problem as ProblemModel } from "@prisma/client";
-import { highlight, languages } from "prismjs/components/prism-core";
-import "prismjs/components/prism-sql";
+import CodeMirror from "@uiw/react-codemirror";
 import React, { useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import ResizePanel from "react-resize-panel";
-import CodeEditor from "react-simple-code-editor";
 import remarkGfm from "remark-gfm";
 import useSWR from "swr/immutable";
 import { Terminal } from "tabler-icons-react";
@@ -116,6 +133,7 @@ const Problem: React.FC<{
 
 function QueryEditor({ onSubmit, problem }) {
   const theme = useMantineTheme();
+  const preferredColorScheme = useColorScheme();
   const form = useForm({
     initialValues: {
       query: "SELECT",
@@ -134,20 +152,51 @@ function QueryEditor({ onSubmit, problem }) {
       p="sm"
     >
       <form onSubmit={onFormSubmit}>
-        <CodeEditor
+        <CodeMirror
           value={form.values.query}
-          onValueChange={(value) => form.setFieldValue("query", value)}
+          onChange={(value) => form.setFieldValue("query", value)}
           onKeyDown={(e: React.KeyboardEvent) => {
             if (e.key === "Enter" && e.metaKey) {
               onFormSubmit(e);
             }
           }}
-          highlight={(code) => highlight(code, languages.sql)}
-          padding={4}
-          className="code-editor"
+          extensions={[
+            sql({ dialect: PostgreSQL }),
+            history(),
+            drawSelection(),
+            EditorState.allowMultipleSelections.of(true),
+            indentOnInput(),
+            syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+            bracketMatching(),
+            highlightActiveLine(),
+            highlightSelectionMatches(),
+            indentService.of((context, pos) => {
+              if (!pos) return 0;
+              // dumbest auto-indent: continue previous line's indent
+              return context.lineIndent(pos - 1);
+            }),
+            keymap.of([
+              ...closeBracketsKeymap,
+              ...defaultKeymap.filter((x) => x.key !== "Mod-Enter"),
+              ...searchKeymap,
+              ...historyKeymap,
+            ]),
+            EditorView.theme({
+              "&": {
+                padding: "4px",
+                borderRadius: "4px",
+              },
+              ".cm-content": {
+                fontFamily:
+                  "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace",
+              },
+            }),
+          ]}
+          maxHeight="200px"
+          basicSetup={false}
+          theme={preferredColorScheme}
           style={{
-            border: `1px solid ${theme.colors.gray[4]}`,
-            borderRadius: 4,
+            fontSize: 14,
           }}
         />
         <Group position="apart" mt="md">
@@ -160,7 +209,7 @@ function QueryEditor({ onSubmit, problem }) {
       <Modal
         opened={showCodex}
         onClose={() => setShowCodex(false)}
-        title={<Title>Ask OpenAI Codex</Title>}
+        title={<Title order={3}>Ask OpenAI Codex</Title>}
         size="full"
       >
         <CodexModal problem={problem} />

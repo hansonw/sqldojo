@@ -8,6 +8,7 @@ export type LeaderboardProblemState = {
   openTimestamp: number;
   attempts: number;
   solveTimeSecs: number;
+  codexAssists: number;
 };
 
 export type LeaderboardRow = {
@@ -16,6 +17,7 @@ export type LeaderboardRow = {
   problemState: { [problemId: string]: LeaderboardProblemState };
   totalPoints: number;
   totalTimeSecs: number;
+  codexAssists: number;
 };
 
 export type LeaderboardResponse = {

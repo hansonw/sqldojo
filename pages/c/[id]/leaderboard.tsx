@@ -91,6 +91,7 @@ export default function Leaderboard({
             ))}
             <th>Points</th>
             <th>Time (min)</th>
+            <th>Codex #</th>
           </tr>
         </thead>
         <tbody>
@@ -141,20 +142,44 @@ export default function Leaderboard({
                 let attempts = null;
                 if (state?.attempts) {
                   attempts = (
-                    <Tooltip label="Penalties" style={{ position: "absolute" }}>
-                      <Badge size="xs">{state.attempts}</Badge>
+                    <Tooltip
+                      label="Penalties"
+                      style={{ position: "absolute", top: -12, right: -8 }}
+                    >
+                      <Badge size="xs" style={{ padding: "0 4px" }}>
+                        {state.attempts}
+                      </Badge>
+                    </Tooltip>
+                  );
+                }
+                let codex = null;
+                if (state?.codexAssists) {
+                  codex = (
+                    <Tooltip
+                      label={`Used OpenAI Codex (${state.codexAssists} prompts)`}
+                      style={{ position: "absolute", bottom: 0, right: -8 }}
+                    >
+                      <Badge size="xs" style={{ padding: "0 4px" }}>
+                        ★
+                      </Badge>
                     </Tooltip>
                   );
                 }
                 return (
                   <td key={j}>
-                    {icon}
-                    {attempts}
+                    <div
+                      style={{ position: "relative", display: "inline-block" }}
+                    >
+                      {icon}
+                      {attempts}
+                      {codex}
+                    </div>
                   </td>
                 );
               })}
               <td>{row.totalPoints}</td>
               <td>{Math.round(row.totalTimeSecs / 60)}</td>
+              <td>{row.codexAssists}</td>
             </tr>
           ))}
         </tbody>

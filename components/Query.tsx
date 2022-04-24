@@ -14,6 +14,7 @@ import {
   UnstyledButton,
   useMantineTheme,
 } from "@mantine/core";
+import { useColorScheme } from "@mantine/hooks";
 import { Prism } from "@mantine/prism";
 import React from "react";
 import useSWR from "swr";
@@ -175,6 +176,7 @@ export function Query({
   onDelete: () => void;
   onSubmit: (result: boolean) => void;
 }) {
+  const preferredColorScheme = useColorScheme();
   const queryStr = query.query;
   const [showResult, setShowResult] = React.useState(!query._hideResult);
   const swr = useSWR(showResult ? `${query.problemId}:${query.id}` : null, () =>
@@ -207,12 +209,21 @@ export function Query({
   let content = null;
   if (!showResult) {
     content = (
-      <Stack>
+      <Stack spacing="xs">
         <Button variant="outline" onClick={() => setShowResult(true)} fullWidth>
           Show result
         </Button>
-        {answerState != null && (
+        {answerState != null ? (
           <SubmitButton answerState={answerState} onSubmit={() => {}} />
+        ) : (
+          <Button
+            leftIcon={<Trash />}
+            onClick={onDelete}
+            variant="outline"
+            color="red"
+          >
+            Delete
+          </Button>
         )}
       </Stack>
     );
@@ -322,8 +333,7 @@ export function Query({
       <Card.Section mb="xs">
         <Prism
           language="sql"
-          noCopy
-          colorScheme="dark"
+          colorScheme={preferredColorScheme}
           scrollAreaComponent="div"
         >
           {queryStr}

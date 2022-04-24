@@ -1,11 +1,11 @@
 import {
-  Group,
-  Title,
-  Text,
-  Textarea,
   Box,
   Button,
+  Group,
   LoadingOverlay,
+  Text,
+  Textarea,
+  Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { Prism } from "@mantine/prism";
@@ -43,15 +43,15 @@ export default function CodexModal({ problem }: { problem: Problem }) {
   return (
     <Group grow align="baseline" spacing="xl">
       <Box>
-        <Text mb="md">
+        <Text mb="md" size="sm">
           Ask Codex for assistance! Describe what you need your query to do in
           plain English and get a SQL suggestion on the right.
         </Text>
-        <Text mb="md">
+        <Text mb="md" size="sm">
           We've filled in a default prompt for you to tell Codex about the
-          expected input and output format, but you might need to be a bit
-          clever about how you ask your question to get a working answer. Good
-          luck!
+          expected inputs/outputs/table schemas — you need to tell Codex about
+          the tables you want it to use, but you might need to be a bit clever
+          about how you ask your question to get a working answer. Good luck!
         </Text>
         <form onSubmit={onSubmit}>
           <Textarea
