@@ -69,7 +69,9 @@ export default async function handler(req, res) {
         const resultOrder = result.rows.map((r) => _stringify(r, checkCols));
         expectedOrder.sort();
         resultOrder.sort();
-        correct = expectedOrder.join("\n") == resultOrder.join("\n");
+        correct =
+          expectedOrder.join("\n").toLowerCase() ==
+          resultOrder.join("\n").toLowerCase();
       } else {
         for (let i = 0; i < result.rows.length && correct; i++) {
           for (let col of checkCols) {
