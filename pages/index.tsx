@@ -134,6 +134,7 @@ function Competition({
               )
             : null,
           transition: "all 0.5s ease",
+          border: `1px solid ${theme.colors.gray[4]}`,
         })}
       >
         <Text weight={500}>{competition.name}</Text>

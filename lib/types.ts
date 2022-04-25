@@ -20,6 +20,17 @@ export type LeaderboardRow = {
   codexAssists: number;
 };
 
+export type LeaderboardFeedItem = {
+  userName: string;
+  userImage: string;
+  problemName: string;
+  description: string;
+  descriptionColor: string | null;
+  query: string;
+  timestamp: number;
+};
+
 export type LeaderboardResponse = {
   ranking: LeaderboardRow[];
+  feed: LeaderboardFeedItem[];
 };

@@ -13,67 +13,85 @@ export async function getLeaderboard(
   selfOnly: boolean
 ): Promise<LeaderboardResponse> {
   const userFilter = selfOnly ? { userId: user.id } : {};
-  const [participants, opens, submissions, codexPrompts] = await Promise.all([
-    prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        image: true,
-      },
-      where: selfOnly
-        ? { id: user.id }
-        : {
-            problemOpens: {
-              some: {
-                problem: {
-                  competitionId,
+  const [participants, opens, queries, submissions, codexPrompts] =
+    await Promise.all([
+      prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          image: true,
+        },
+        where: selfOnly
+          ? { id: user.id }
+          : {
+              problemOpens: {
+                some: {
+                  problem: {
+                    competitionId,
+                  },
                 },
               },
             },
+      }),
+      prisma.problemOpen.findMany({
+        where: {
+          problem: {
+            competitionId,
           },
-    }),
-    prisma.problemOpen.findMany({
-      where: {
-        problem: {
-          competitionId,
+          ...userFilter,
         },
-        ...userFilter,
-      },
-    }),
-    prisma.problemSubmission.findMany({
-      where: {
-        problem: {
-          competitionId,
-        },
-        ...userFilter,
-      },
-      include: {
-        problem: {
-          select: {
-            points: true,
+      }),
+      prisma.problemQuery.findMany({
+        where: {
+          problem: {
+            competitionId,
           },
+          ...userFilter,
         },
-      },
-      orderBy: {
-        correct: "asc",
-      },
-    }),
-    prisma.codexPrompt.findMany({
-      where: {
-        problem: {
-          competitionId,
-        },
-        ...userFilter,
-      },
-      include: {
-        problem: {
-          select: {
-            points: true,
+        include: {
+          problem: {
+            select: {
+              name: true,
+            },
           },
         },
-      },
-    }),
-  ]);
+      }),
+      prisma.problemSubmission.findMany({
+        where: {
+          problem: {
+            competitionId,
+          },
+          ...userFilter,
+        },
+        include: {
+          problem: {
+            select: {
+              points: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: {
+          correct: "asc",
+        },
+      }),
+      prisma.codexPrompt.findMany({
+        where: {
+          problem: {
+            competitionId,
+          },
+          ...userFilter,
+        },
+        include: {
+          problem: {
+            select: {
+              points: true,
+              name: true,
+            },
+          },
+        },
+      }),
+    ]);
   const users: Map<string, LeaderboardRow> = new Map();
   for (const user of participants) {
     users.set(user.id, {
@@ -98,6 +116,7 @@ export async function getLeaderboard(
       codexAssists: 0,
     };
   }
+  let feed = user.isAdmin ? [] : null;
   for (const submission of submissions) {
     const user = users.get(submission.userId);
     if (user == null) {
@@ -126,6 +145,17 @@ export async function getLeaderboard(
       problemState.status = "attempted";
       problemState.attempts += 1;
     }
+    feed?.push({
+      userName: user.userName,
+      userImage: user.userImage,
+      problemName: submission.problem.name,
+      description: `submitted a ${
+        submission.correct ? "correct" : "incorrect"
+      } answer`,
+      descriptionColor: submission.correct ? "green" : "red",
+      query: submission.query,
+      timestamp: submission.createdAt.getTime(),
+    });
   }
   for (const prompt of codexPrompts) {
     const user = users.get(prompt.userId);
@@ -137,6 +167,30 @@ export async function getLeaderboard(
     if (problemState != null) {
       problemState.codexAssists += 1;
     }
+    feed?.push({
+      userName: user.userName,
+      userImage: user.userImage,
+      problemName: prompt.problem.name,
+      description: `used OpenAI Codex to get a prompt`,
+      descriptionColor: "blue",
+      query: prompt.answer,
+      timestamp: prompt.createdAt.getTime(),
+    });
+  }
+  for (const query of queries) {
+    const user = users.get(query.userId);
+    if (user == null) {
+      continue;
+    }
+    feed?.push({
+      userName: user.userName,
+      userImage: user.userImage,
+      problemName: query.problem.name,
+      description: `ran a query`,
+      descriptionColor: null,
+      query: query.query,
+      timestamp: query.createdAt.getTime(),
+    });
   }
   // points descending, time ascending
   const ranking = Array.from(users.values()).sort((x, y) => {
@@ -147,5 +201,6 @@ export async function getLeaderboard(
       x.userName.localeCompare(y.userName)
     );
   });
-  return { ranking };
+  feed?.sort((x, y) => y.timestamp - x.timestamp);
+  return { ranking, feed: feed?.slice(0, 25) ?? [] };
 }
