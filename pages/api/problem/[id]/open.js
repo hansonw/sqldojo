@@ -8,6 +8,15 @@ export default async function handler(req, res) {
     return;
   }
   try {
+    const problem = await prisma.problem.findFirst({
+      where: { id: req.query.id },
+      select: {},
+      include: { competition: { select: { endDate: true } } },
+    });
+    if (!problem || problem.competition.endDate < new Date()) {
+      res.status(200).json({});
+      return;
+    }
     const result = await prisma.problemOpen.upsert({
       where: {
         problemId_userId: {

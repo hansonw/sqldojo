@@ -27,7 +27,10 @@ export default async function handler(req, res) {
   }
   const [user, problem] = await Promise.all([
     getUser({ req }),
-    prisma.problem.findFirst({ where: { id: req.query.id } }),
+    prisma.problem.findFirst({
+      where: { id: req.query.id },
+      include: { competition: { select: { endDate: true } } },
+    }),
   ]);
   if (!user || !problem) {
     return;
@@ -87,14 +90,16 @@ export default async function handler(req, res) {
       }
     }
     res.status(200).json({ correct });
-    await prisma.problemSubmission.create({
-      data: {
-        problemId: req.query.id,
-        userId: user.id,
-        query: queryBody,
-        correct,
-      },
-    });
+    if (problem.competition.endDate > new Date()) {
+      await prisma.problemSubmission.create({
+        data: {
+          problemId: req.query.id,
+          userId: user.id,
+          query: queryBody,
+          correct,
+        },
+      });
+    }
   } catch (e) {
     console.error("[verify] Error: ", e);
     res.status(400).json({ error: String(e) });

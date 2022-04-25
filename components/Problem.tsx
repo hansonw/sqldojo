@@ -132,7 +132,6 @@ const Problem: React.FC<{
 };
 
 function QueryEditor({ onSubmit, problem }) {
-  const theme = useMantineTheme();
   const preferredColorScheme = useColorScheme();
   const form = useForm({
     initialValues: {

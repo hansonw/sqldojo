@@ -4,13 +4,13 @@ import {
   AppShell,
   Badge,
   Box,
+  Button,
   Group,
   Header,
   Navbar,
   Text,
   ThemeIcon,
   Timeline,
-  Title,
   UnstyledButton,
   useMantineTheme,
 } from "@mantine/core";
@@ -23,13 +23,24 @@ import {
 import Immutable from "immutable";
 import { GetServerSidePropsContext } from "next";
 import dynamic from "next/dynamic";
+import Head from "next/head";
 import Router from "next/router";
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import useSWR from "swr";
-import { Check, ChevronLeft, ChevronRight, Point, X } from "tabler-icons-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  Point,
+  Tournament,
+  X,
+} from "tabler-icons-react";
+import { Countdown } from "../../components/Countdown";
 import HeaderAuth from "../../components/HeaderAuth";
 import { LiveTimer } from "../../components/LiveTimer";
+import { Logo } from "../../components/Logo";
 import { getLeaderboard } from "../../lib/leaderboard";
 import prisma from "../../lib/prisma";
 import { QueryStore } from "../../lib/QueryStore";
@@ -118,6 +129,7 @@ const Competition: React.FC<{
     { fallbackData: initialLeaderboard, revalidateOnMount: false }
   );
   const selfLeaderboardRow = selfLeaderboard.data?.ranking?.[0];
+  const competitionEndDate = new Date(competition.endDate);
 
   function optimisticOpen(problemId: string) {
     if (!localOpenProblems.has(problemId)) {
@@ -202,7 +214,6 @@ const Competition: React.FC<{
       fixed
       navbar={
         <Navbar
-          p="md"
           hiddenBreakpoint="sm"
           hidden // NOTE: only actually hides on hiddenBreakpoint
           width={{ sm: showNavbar ? 300 : 32, lg: showNavbar ? 300 : 32 }}
@@ -216,126 +227,159 @@ const Competition: React.FC<{
           </ActionIcon>
           {showNavbar && (
             <>
-              <UnstyledButton
-                onClick={() => Router.push("#")}
-                title={competition.name}
-                sx={{
-                  "&:hover": {
-                    backgroundColor: theme.colors.gray[1],
-                  },
-                }}
-                mb="md"
-              >
-                <Text weight={500}>{competition.name}</Text>
-              </UnstyledButton>
-              <Timeline
-                bulletSize={24}
-                lineWidth={2}
-                styles={{
-                  item: {
-                    cursor: "pointer",
+              <Navbar.Section>
+                <UnstyledButton
+                  p="sm"
+                  onClick={() => Router.push("#")}
+                  title={competition.name}
+                  sx={{
+                    width: "100%",
+                    borderBottom: `1px solid ${theme.colors.gray[3]}`,
                     "&:hover": {
                       backgroundColor: theme.colors.gray[1],
                     },
-                  },
-                }}
-              >
-                {problems.map((problem) => {
-                  let bullet = null;
-                  let statusText = null;
-                  const isSelected = problem.id === selectedProblem?.id;
-                  const problemState =
-                    selfLeaderboardRow?.problemState?.[problem.id];
-                  const timer = isSelected && (
-                    <>
-                      (
-                      <LiveTimer
-                        start={
-                          problemState?.openTimestamp ??
-                          localOpenProblems.get(problem.id) ??
-                          0
+                  }}
+                >
+                  <Text weight={500}>🏆&nbsp;&nbsp;{competition.name}</Text>
+                  <Text size="xs">
+                    <Countdown endDate={competitionEndDate} />
+                  </Text>
+                </UnstyledButton>
+              </Navbar.Section>
+              <Navbar.Section grow>
+                <Timeline
+                  bulletSize={24}
+                  lineWidth={2}
+                  ml="md"
+                  mt="md"
+                  styles={{
+                    item: {
+                      cursor: "pointer",
+                      "&:hover": {
+                        backgroundColor: theme.colors.gray[1],
+                      },
+                    },
+                  }}
+                >
+                  {problems.map((problem) => {
+                    let bullet = null;
+                    let statusText = null;
+                    const isSelected = problem.id === selectedProblem?.id;
+                    const problemState =
+                      selfLeaderboardRow?.problemState?.[problem.id];
+                    const timer = isSelected && (
+                      <>
+                        (
+                        <LiveTimer
+                          start={
+                            problemState?.openTimestamp ??
+                            localOpenProblems.get(problem.id) ??
+                            0
+                          }
+                        />
+                        )
+                      </>
+                    );
+                    if (problemState?.status === "solved") {
+                      bullet = (
+                        <ThemeIcon color="green">
+                          <Check />
+                        </ThemeIcon>
+                      );
+                      statusText = (
+                        <>
+                          Solved!
+                          {problemState?.attempts
+                            ? ` (${problemState.attempts}x penalty)`
+                            : null}
+                        </>
+                      );
+                    } else if (problemState?.status === "attempted") {
+                      bullet = (
+                        <ThemeIcon color="red">
+                          <X />
+                        </ThemeIcon>
+                      );
+                      statusText = (
+                        <>
+                          {problemState.attempts} attempts {timer}
+                        </>
+                      );
+                    } else if (
+                      problemState?.status === "open" ||
+                      localOpenProblems.has(problem.id)
+                    ) {
+                      bullet = (
+                        <ThemeIcon color="blue" radius={16}>
+                          <Point />
+                        </ThemeIcon>
+                      );
+                      statusText = <>Timer started {timer}</>;
+                    } else {
+                      statusText = (
+                        <Text size="xs" color="dimmed">
+                          Unopened
+                        </Text>
+                      );
+                    }
+                    return (
+                      <Timeline.Item
+                        key={problem.id}
+                        bullet={bullet}
+                        color="green"
+                        title={
+                          <span
+                            style={{
+                              fontWeight: isSelected ? "bold" : null,
+                            }}
+                          >
+                            {problem.name}
+                          </span>
                         }
-                      />
-                      )
-                    </>
-                  );
-                  if (problemState?.status === "solved") {
-                    bullet = (
-                      <ThemeIcon color="green">
-                        <Check />
-                      </ThemeIcon>
-                    );
-                    statusText = (
-                      <>
-                        Solved!
-                        {problemState?.attempts
-                          ? ` (${problemState.attempts}x penalty)`
-                          : null}
-                      </>
-                    );
-                  } else if (problemState?.status === "attempted") {
-                    bullet = (
-                      <ThemeIcon color="red">
-                        <X />
-                      </ThemeIcon>
-                    );
-                    statusText = (
-                      <>
-                        {problemState.attempts} attempts {timer}
-                      </>
-                    );
-                  } else if (
-                    problemState?.status === "open" ||
-                    localOpenProblems.has(problem.id)
-                  ) {
-                    bullet = (
-                      <ThemeIcon color="blue" radius={16}>
-                        <Point />
-                      </ThemeIcon>
-                    );
-                    statusText = <>Timer started {timer}</>;
-                  } else {
-                    statusText = (
-                      <Text size="xs" color="dimmed">
-                        Unopened
-                      </Text>
-                    );
-                  }
-                  return (
-                    <Timeline.Item
-                      key={problem.id}
-                      bullet={bullet}
-                      color="green"
-                      title={
-                        <span
-                          style={{
-                            fontWeight: isSelected ? "bold" : null,
-                          }}
-                        >
-                          {problem.name}
-                        </span>
-                      }
-                      onClick={() => Router.push(`#${problem.id}`)}
-                      style={{
-                        backgroundColor: isSelected
-                          ? theme.colors.gray[1]
-                          : null,
-                      }}
-                    >
-                      <Text size="xs" weight={isSelected ? 600 : null}>
-                        {statusText}
-                      </Text>
-                      <Text
-                        color="dimmed"
-                        size="xs"
-                        weight={isSelected ? 600 : null}
+                        onClick={() => Router.push(`#${problem.id}`)}
+                        style={{
+                          backgroundColor: isSelected
+                            ? theme.colors.gray[1]
+                            : null,
+                        }}
                       >
-                        {problem.points} points
-                      </Text>
-                    </Timeline.Item>
-                  );
-                })}
-              </Timeline>
+                        <Text size="xs" weight={isSelected ? 600 : null}>
+                          {statusText}
+                        </Text>
+                        <Text
+                          color="dimmed"
+                          size="xs"
+                          weight={isSelected ? 600 : null}
+                        >
+                          {problem.points} points
+                        </Text>
+                      </Timeline.Item>
+                    );
+                  })}
+                </Timeline>
+              </Navbar.Section>
+              <Navbar.Section>
+                <Box
+                  p="md"
+                  sx={(theme) => ({
+                    borderTop: `1px solid ${theme.colors.gray[3]}`,
+                  })}
+                >
+                  <Text size="sm" weight={500}>
+                    Your points:{" "}
+                    <Text variant="gradient" component="span">
+                      {selfLeaderboardRow?.totalPoints ?? 0}
+                    </Text>
+                  </Text>
+                  <Text color="dimmed" size="xs">
+                    Total time:{" "}
+                    {Math.round(
+                      ((selfLeaderboardRow?.totalTimeSecs ?? 0) / 60) * 10
+                    ) / 10}{" "}
+                    mins
+                  </Text>
+                </Box>
+              </Navbar.Section>
             </>
           )}
         </Navbar>
@@ -344,24 +388,21 @@ const Competition: React.FC<{
         <Header height={70} p="md">
           <Group position="apart">
             <Group>
-              <UnstyledButton onClick={() => Router.push("/")} mr="lg">
-                <Title>SQL Dojo</Title>
-              </UnstyledButton>
+              <Logo />
               <Anchor href={`/c/${competition.id}/leaderboard`} target="_blank">
-                <Text>Leaderboard</Text>
+                <Button leftIcon={<Tournament />} p="sm">
+                  Leaderboard
+                </Button>
               </Anchor>
-              <Badge
-                variant="gradient"
-                gradient={{ from: "indigo", to: "cyan" }}
-              >
-                Your points: {selfLeaderboardRow?.totalPoints ?? 0}
-              </Badge>
             </Group>
             <HeaderAuth />
           </Group>
         </Header>
       }
     >
+      <Head>
+        <title>SQL Dojo - {competition.name}</title>
+      </Head>
       {selectedProblem ? (
         <Problem
           problem={selectedProblem}
@@ -397,7 +438,7 @@ const Competition: React.FC<{
           }}
         />
       ) : (
-        <Box pl="md">
+        <Box pl="md" pr="md">
           <ReactMarkdown children={competition.content} />
         </Box>
       )}

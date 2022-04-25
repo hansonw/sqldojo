@@ -4,18 +4,21 @@ import {
   Box,
   Center,
   Table,
+  Text,
   ThemeIcon,
   Title,
   Tooltip,
 } from "@mantine/core";
-import { Problem } from "@prisma/client";
+import { Competition, Problem } from "@prisma/client";
 import type { GetServerSidePropsContext } from "next";
+import Head from "next/head";
 import useSWR from "swr";
 import { Check, Point, X } from "tabler-icons-react";
+import { Countdown } from "../../../components/Countdown";
 import { getLeaderboard } from "../../../lib/leaderboard";
 import prisma from "../../../lib/prisma";
 import type { LeaderboardResponse } from "../../../lib/types";
-import { getUser } from "../../../lib/util";
+import { getUser, serializePrisma } from "../../../lib/util";
 
 export async function getServerSideProps(context: GetServerSidePropsContext) {
   const user = await getUser(context);
@@ -27,7 +30,12 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     };
   }
   const competitionId = context.params.id as string;
-  const [problems, initialLeaderboard] = await Promise.all([
+  const [competition, problems, initialLeaderboard] = await Promise.all([
+    prisma.competition.findUnique({
+      where: {
+        id: competitionId,
+      },
+    }),
     prisma.problem.findMany({
       where: { competitionId },
       orderBy: [{ points: "asc" }, { id: "asc" }],
@@ -36,7 +44,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   ]);
   return {
     props: {
-      competitionId,
+      competition: serializePrisma(competition),
       problems,
       initialLeaderboard,
     },
@@ -44,16 +52,16 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
 }
 
 export default function Leaderboard({
-  competitionId,
+  competition,
   problems,
   initialLeaderboard,
 }: {
-  competitionId: string;
+  competition: Competition;
   problems: Problem[];
   initialLeaderboard: LeaderboardResponse;
 }) {
   const leaderboard = useSWR<LeaderboardResponse>(
-    `/api/c/${competitionId}/leaderboard`,
+    `/api/c/${competition.id}/leaderboard`,
     (key) => fetch(key).then((r) => r.json()),
     {
       fallbackData: initialLeaderboard,
@@ -71,8 +79,16 @@ export default function Leaderboard({
         justifyContent: "center",
       }}
     >
+      <Head>
+        <title>SQL Dojo - Leaderboard</title>
+      </Head>
+      <Center>
+        <Title>{competition.name} Leaderboard</Title>
+      </Center>
       <Center mb="md">
-        <Title>Leaderboard</Title>
+        <Text size="sm">
+          <Countdown endDate={new Date(competition.endDate)} />
+        </Text>
       </Center>
       <Table horizontalSpacing={2} verticalSpacing={2}>
         <style jsx>{`

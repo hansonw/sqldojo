@@ -7,16 +7,18 @@ import {
   Header,
   Stack,
   Text,
-  Title,
   UnstyledButton,
   useMantineTheme,
 } from "@mantine/core";
 import { Competition as CompetitionModel, User } from "@prisma/client";
 import { GetServerSidePropsContext } from "next";
 import { signIn } from "next-auth/react";
+import Head from "next/head";
 import Router from "next/router";
-import React from "react";
+import React, { useEffect } from "react";
 import HeaderAuth from "../components/HeaderAuth";
+import { Logo } from "../components/Logo";
+import { useTimeUntil } from "../components/useTimeUntil";
 import prisma from "../lib/prisma";
 import { getUser, serializePrisma } from "../lib/util";
 
@@ -38,75 +40,32 @@ type Props = {
 };
 
 const Competitions: React.FC<Props> = ({ competitions, user }) => {
-  const theme = useMantineTheme();
-  const secondaryColor =
-    theme.colorScheme === "dark" ? theme.colors.dark[1] : theme.colors.gray[7];
-  const now = new Date();
-
   return (
     <AppShell
-      styles={{
-        main: {
-          background:
-            theme.colorScheme === "dark"
-              ? theme.colors.dark[8]
-              : theme.colors.gray[0],
-        },
-      }}
       navbarOffsetBreakpoint="sm"
       asideOffsetBreakpoint="sm"
       fixed
       header={
         <Header height={70} p="md">
           <Group position="apart">
-            <div
-              style={{ display: "flex", alignItems: "center", height: "100%" }}
-            >
-              <Title>SQL Dojo</Title>
-            </div>
+            <Logo />
             <HeaderAuth />
           </Group>
         </Header>
       }
     >
+      <Head>
+        <title>SQL Dojo</title>
+      </Head>
       {user ? (
         <Stack>
-          {competitions.map((competition) => {
-            let status: string;
-            let enabled = true;
-            if (new Date(competition.endDate) < now) {
-              status =
-                "Competition is over! You can still participate asynchronously.";
-            } else {
-              const startDate = new Date(competition.startDate);
-              if (startDate < now) {
-                status = "Active now!";
-              } else {
-                status = "Contest starts at " + startDate.toLocaleString();
-                enabled = false;
-              }
-            }
-            return (
-              <UnstyledButton
-                key={competition.id}
-                disabled={!enabled && !user.isAdmin}
-                onClick={() => Router.push(`/c/${competition.id}`)}
-                style={{
-                  opacity: enabled ? 1 : 0.5,
-                }}
-              >
-                <Card shadow="sm" p="lg">
-                  <Text weight={500}>{competition.name}</Text>
-                  <Text
-                    size="sm"
-                    style={{ color: secondaryColor, lineHeight: 1.5 }}
-                  >
-                    {status}
-                  </Text>
-                </Card>
-              </UnstyledButton>
-            );
-          })}
+          {competitions.map((competition) => (
+            <Competition
+              competition={competition}
+              user={user}
+              key={competition.id}
+            />
+          ))}
         </Stack>
       ) : (
         <Center>
@@ -121,5 +80,69 @@ const Competitions: React.FC<Props> = ({ competitions, user }) => {
     </AppShell>
   );
 };
+
+function Competition({
+  competition,
+  user,
+}: {
+  competition: CompetitionModel;
+  user: User;
+}) {
+  const startDate = new Date(competition.startDate);
+  const endDate = new Date(competition.endDate);
+  const now = useTimeUntil(startDate.getTime());
+  let status: string;
+  let enabled = true;
+  if (now >= endDate.getTime()) {
+    status = "Competition is over! But feel free to check out the problems.";
+  } else {
+    if (now >= startDate.getTime()) {
+      status = "Active now! Click here to enter.";
+    } else {
+      status = "Contest starts at " + startDate.toLocaleString();
+      const remainingSecs = (startDate.getTime() - now) / 1000;
+      if (remainingSecs < 60 * 60 * 24) {
+        // get hours, minutes, seconds remaining
+        status += ` (in ${Math.floor(
+          remainingSecs / 60 / 60
+        )} hours, ${Math.floor(
+          (remainingSecs / 60) % 60
+        )} minutes, ${Math.floor(remainingSecs % 60)} seconds)`;
+      }
+      enabled = false;
+    }
+  }
+  return (
+    <UnstyledButton
+      key={competition.id}
+      disabled={!enabled && !user.isAdmin}
+      onClick={() => Router.push(`/c/${competition.id}`)}
+      style={{
+        opacity: enabled ? 1 : 0.7,
+        transition: "all 0.5s ease",
+      }}
+    >
+      <Card
+        shadow="sm"
+        p="lg"
+        sx={(theme) => ({
+          background: enabled
+            ? theme.fn.linearGradient(
+                45,
+                theme.colors.indigo[1],
+                theme.colors.cyan[1]
+              )
+            : null,
+          transition: "all 0.5s ease",
+        })}
+      >
+        <Text weight={500}>{competition.name}</Text>
+        <Text size="sm" color="dimmed" style={{ lineHeight: 1.5 }}>
+          {status}
+        </Text>
+      </Card>
+    </UnstyledButton>
+  );
+}
 
 export default Competitions;
