@@ -88,14 +88,14 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
           problem: problemFilter,
           userId: user.id,
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: "desc" },
       }),
       prisma.problemQuery.findMany({
         where: {
           problem: problemFilter,
           userId: user.id,
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: "desc" },
       }),
       getLeaderboard(user, competition.id, true),
     ]);
@@ -176,14 +176,6 @@ const Competition: React.FC<{
 
   const [queryStore, setQueryStore] = React.useState(() => {
     let map = new Map<string, QueryStore[]>();
-    for (const query of queries) {
-      let list = map.get(query.problemId);
-      if (!list) {
-        list = [];
-        map.set(query.problemId, list);
-      }
-      list.push(QueryStore.fromProblemQuery(query));
-    }
     for (const submission of submissions) {
       let list = map.get(submission.problemId);
       if (!list) {
@@ -192,8 +184,21 @@ const Competition: React.FC<{
       }
       list.push(QueryStore.fromSubmission(submission));
     }
+    for (const query of queries) {
+      let list = map.get(query.problemId);
+      if (!list) {
+        list = [];
+        map.set(query.problemId, list);
+      }
+      if (!list.find((q) => q.query === query.query)) {
+        list.push(QueryStore.fromProblemQuery(query));
+      }
+    }
     return Immutable.Map(
-      Array.from(map.entries()).map(([k, v]) => [k, Immutable.List(v)])
+      Array.from(map.entries()).map(([k, v]) => [
+        k,
+        Immutable.List(v).reverse(),
+      ])
     );
   });
 
@@ -217,7 +222,6 @@ const Competition: React.FC<{
           hiddenBreakpoint="sm"
           hidden // NOTE: only actually hides on hiddenBreakpoint
           width={{ sm: showNavbar ? 300 : 32, lg: showNavbar ? 300 : 32 }}
-          style={{ overflowY: "auto" }}
         >
           <ActionIcon
             style={{ position: "absolute", right: 0, top: "50%", zIndex: 99 }}
@@ -246,7 +250,7 @@ const Competition: React.FC<{
                   </Text>
                 </UnstyledButton>
               </Navbar.Section>
-              <Navbar.Section grow>
+              <Navbar.Section grow style={{ overflowY: "auto" }}>
                 <Timeline
                   bulletSize={24}
                   lineWidth={2}

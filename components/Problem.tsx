@@ -17,8 +17,10 @@ import {
   keymap,
 } from "@codemirror/view";
 import {
+  ActionIcon,
   Box,
   Button,
+  Collapse,
   Group,
   Modal,
   Text,
@@ -26,7 +28,7 @@ import {
   useMantineTheme,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { useColorScheme } from "@mantine/hooks";
+import { useColorScheme, useLocalStorageValue } from "@mantine/hooks";
 import { Problem as ProblemModel } from "@prisma/client";
 import CodeMirror from "@uiw/react-codemirror";
 import React, { useRef } from "react";
@@ -34,7 +36,7 @@ import ReactMarkdown from "react-markdown";
 import ResizePanel from "react-resize-panel";
 import remarkGfm from "remark-gfm";
 import useSWR from "swr/immutable";
-import { Terminal } from "tabler-icons-react";
+import { Terminal, ThumbDown, ThumbUp } from "tabler-icons-react";
 import { QueryStore } from "../lib/QueryStore";
 import { LeaderboardProblemStatus } from "../lib/types";
 import CodexModal from "./CodexModal";
@@ -122,8 +124,10 @@ const Problem: React.FC<{
               ))
             )}
           </div>
-          {status !== "solved" && (
+          {status !== "solved" ? (
             <QueryEditor onSubmit={onSubmit} problem={problem} />
+          ) : (
+            <ProblemFeedback problem={problem} />
           )}
         </Box>
       </ResizePanel>
@@ -214,6 +218,46 @@ function QueryEditor({ onSubmit, problem }) {
         <CodexModal problem={problem} />
       </Modal>
     </Box>
+  );
+}
+
+function ProblemFeedback({ problem }: { problem: ProblemModel }) {
+  const [localState, setLocalState] = useLocalStorageValue<boolean>({
+    key: `problem-feedback-${problem.id}`,
+    defaultValue: false,
+  });
+  function onLike(liked: boolean) {
+    setLocalState(true);
+    fetch(`/api/problem/${problem.id}/feedback?liked=${liked}`, {
+      method: "POST",
+    })
+      .then((x) => x.json())
+      .catch((err) => {
+        console.error(err);
+        setLocalState(false);
+      });
+  }
+  return (
+    <Collapse in={!localState}>
+      <Box
+        sx={(theme) => ({
+          borderTop: `1px solid ${theme.colors.gray[3]}`,
+        })}
+        p="sm"
+      >
+        <Group position="apart">
+          Did you find this problem fun?
+          <Group>
+            <ActionIcon>
+              <ThumbUp onClick={() => onLike(true)} />
+            </ActionIcon>
+            <ActionIcon>
+              <ThumbDown onClick={() => onLike(false)} />
+            </ActionIcon>
+          </Group>
+        </Group>
+      </Box>
+    </Collapse>
   );
 }
 

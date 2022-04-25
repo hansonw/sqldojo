@@ -296,33 +296,35 @@ export function Query({
               Only showing {rows.length} rows out of {count} total.
             </Alert>
           )}
-          <Group>
-            <SubmitButton
-              answerState={answerState}
-              error={
-                submitDisabled
-                  ? `Incorrect schema! Expected these columns: ${solutionSchema}`
-                  : null
-              }
-              onSubmit={() => {
-                verify().then((state) => {
-                  if (state !== AnswerState.Error) {
-                    onSubmit(state === AnswerState.Correct);
-                  }
-                });
-              }}
-            />
-            {answerState == null && (
-              <ActionIcon
-                variant="outline"
-                color="red"
-                onClick={onDelete}
-                size={36}
-              >
-                <Trash />
-              </ActionIcon>
-            )}
-          </Group>
+          {!query._hideResult && (
+            <Group>
+              <SubmitButton
+                answerState={answerState}
+                error={
+                  submitDisabled
+                    ? `Incorrect schema! Expected these columns: ${solutionSchema}`
+                    : null
+                }
+                onSubmit={() => {
+                  verify().then((state) => {
+                    if (state !== AnswerState.Error) {
+                      onSubmit(state === AnswerState.Correct);
+                    }
+                  });
+                }}
+              />
+              {answerState == null && (
+                <ActionIcon
+                  variant="outline"
+                  color="red"
+                  onClick={onDelete}
+                  size={36}
+                >
+                  <Trash />
+                </ActionIcon>
+              )}
+            </Group>
+          )}
         </Stack>
       );
     }

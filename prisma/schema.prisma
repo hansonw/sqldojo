@@ -25,6 +25,7 @@ model User {
   problemQueries     ProblemQuery[]
   problemSubmissions ProblemSubmission[]
   CodexPrompt        CodexPrompt[]
+  ProblemFeedback    ProblemFeedback[]
   @@map("users")
 }
 
@@ -50,10 +51,11 @@ model Problem {
   competition   Competition       @relation(fields: [competitionId], references: [id])
   codexPrompt   String?
 
-  opens       ProblemOpen[]
-  queries     ProblemQuery[]
-  submissions ProblemSubmission[]
-  CodexPrompt CodexPrompt[]
+  opens           ProblemOpen[]
+  queries         ProblemQuery[]
+  submissions     ProblemSubmission[]
+  CodexPrompt     CodexPrompt[]
+  ProblemFeedback ProblemFeedback[]
 }
 
 model ProblemOpen {
@@ -86,6 +88,17 @@ model ProblemSubmission {
   createdAt DateTime @default(now())
   query     String
   correct   Boolean
+
+  problem Problem @relation(fields: [problemId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+}
+
+model ProblemFeedback {
+  id        String   @id @default(cuid())
+  problemId String
+  userId    String
+  createdAt DateTime @default(now())
+  liked     Boolean
 
   problem Problem @relation(fields: [problemId], references: [id])
   user    User    @relation(fields: [userId], references: [id])

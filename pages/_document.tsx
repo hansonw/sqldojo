@@ -11,7 +11,6 @@ export default class _Document extends Document {
       <Html>
         <Head>
           <link rel="shortcut icon" href="/favicon.svg" />
-          <title>SQL Dojo</title>
         </Head>
         <body>
           <Main />
