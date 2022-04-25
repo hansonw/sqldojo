@@ -104,6 +104,10 @@ export async function getLeaderboard(
       continue;
     }
     const problemState = user.problemState[submission.problemId];
+    if (problemState == null) {
+      // note: this should not happen!!
+      continue;
+    }
     const submissionTime = Math.min(
       MAX_TIME_SECS,
       (submission.createdAt.getTime() - problemState.openTimestamp) / 1000
