@@ -9,7 +9,10 @@ export default class _Document extends Document {
   render() {
     return (
       <Html>
-        <Head />
+        <Head>
+          <link rel="shortcut icon" href="/favicon.svg" />
+          <title>SQL Dojo</title>
+        </Head>
         <body>
           <Main />
           <NextScript />
