@@ -8,14 +8,13 @@ import {
   Stack,
   Text,
   UnstyledButton,
-  useMantineTheme,
 } from "@mantine/core";
 import { Competition as CompetitionModel, User } from "@prisma/client";
 import { GetServerSidePropsContext } from "next";
 import { signIn } from "next-auth/react";
 import Head from "next/head";
 import Router from "next/router";
-import React, { useEffect } from "react";
+import React from "react";
 import HeaderAuth from "../components/HeaderAuth";
 import { Logo } from "../components/Logo";
 import { useTimeUntil } from "../components/useTimeUntil";
@@ -126,14 +125,6 @@ function Competition({
         shadow="sm"
         p="lg"
         sx={(theme) => ({
-          background: enabled
-            ? theme.fn.linearGradient(
-                45,
-                theme.colors.indigo[1],
-                theme.colors.cyan[1]
-              )
-            : null,
-          transition: "all 0.5s ease",
           border: `1px solid ${theme.colors.gray[4]}`,
         })}
       >

@@ -10,14 +10,13 @@ import {
   ThemeIcon,
   Title,
   Tooltip,
-  Transition,
 } from "@mantine/core";
 import { Prism } from "@mantine/prism";
 import { Competition, Problem, User } from "@prisma/client";
 import type { GetServerSidePropsContext } from "next";
 import Head from "next/head";
 import useSWR from "swr";
-import { Check, FileDescription, Point, X } from "tabler-icons-react";
+import { Check, Point, X } from "tabler-icons-react";
 import { Countdown } from "../../../components/Countdown";
 import { getLeaderboard } from "../../../lib/leaderboard";
 import prisma from "../../../lib/prisma";
@@ -223,52 +222,47 @@ export default function Leaderboard({
         >
           <Title order={4}>Live Feed</Title>
           {leaderboard.data?.feed?.map((row, i) => (
-            <Transition mounted transition="pop">
-              {(styles) => (
-                <Card
-                  key={row.timestamp}
-                  shadow="sm"
-                  mt="sm"
-                  mb="sm"
-                  sx={(theme) => ({
-                    ...styles,
-                    border: `1px solid ${theme.colors.gray[3]}`,
-                  })}
+            <Card
+              key={row.timestamp}
+              shadow="sm"
+              mt="sm"
+              mb="sm"
+              sx={(theme) => ({
+                border: `1px solid ${theme.colors.gray[3]}`,
+              })}
+            >
+              <Card.Section p="sm">
+                <Group position="apart">
+                  <Group spacing="xs">
+                    <Avatar src={row.userImage} size="xs" radius="xl">
+                      {row.userName}
+                    </Avatar>
+                    <Text size="sm">
+                      {row.userName}{" "}
+                      <b style={{ color: row.descriptionColor }}>
+                        {row.description}
+                      </b>{" "}
+                      for {row.problemName}
+                    </Text>
+                  </Group>
+                  <Text size="sm" color="dimmed">
+                    {new Date(row.timestamp).toLocaleString()}
+                  </Text>
+                </Group>
+              </Card.Section>
+              <Card.Section>
+                <Prism
+                  language={"sql"}
+                  noCopy
+                  colorScheme="dark"
+                  style={{
+                    filter: "blur(0.2em)",
+                  }}
                 >
-                  <Card.Section p="sm">
-                    <Group position="apart">
-                      <Group spacing="xs">
-                        <Avatar src={row.userImage} size="xs" radius="xl">
-                          {row.userName}
-                        </Avatar>
-                        <Text size="sm">
-                          {row.userName}{" "}
-                          <b style={{ color: row.descriptionColor }}>
-                            {row.description}
-                          </b>{" "}
-                          for {row.problemName}
-                        </Text>
-                      </Group>
-                      <Text size="sm" color="dimmed">
-                        {new Date(row.timestamp).toLocaleString()}
-                      </Text>
-                    </Group>
-                  </Card.Section>
-                  <Card.Section>
-                    <Prism
-                      language={"sql"}
-                      noCopy
-                      colorScheme="dark"
-                      style={{
-                        filter: "blur(0.2em)",
-                      }}
-                    >
-                      {row.query.replaceAll("\n", "\t")}
-                    </Prism>
-                  </Card.Section>
-                </Card>
-              )}
-            </Transition>
+                  {row.query.replace(/\n/g, "\t")}
+                </Prism>
+              </Card.Section>
+            </Card>
           ))}
         </Box>
       )}
