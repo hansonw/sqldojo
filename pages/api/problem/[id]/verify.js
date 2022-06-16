@@ -3,7 +3,6 @@ import format from "pg-format";
 import getRawBody from "raw-body";
 import prisma from "../../../../lib/prisma";
 import { getUser } from "../../../../lib/util";
-import { solutionsPool } from "../../../../lib/contestDB";
 
 export const config = {
   api: {
@@ -48,27 +47,23 @@ export default async function handler(req, res) {
     const queryBody = body.toString("utf-8");
     const [result, expected] = await Promise.all([
       client.query(queryBody),
-      solutionsPool.query(
-        format("SELECT * FROM %I ORDER BY sort_id ASC", problem.dbName)
+      prisma.$queryRawUnsafe(
+        format(
+          "SELECT * FROM solutions.%I ORDER BY sort_id ASC",
+          problem.dbName
+        )
       ),
     ]);
     let correct = true;
-    if (result.rows.length !== expected.rows.length) {
+    if (result.rows.length !== expected.length) {
       console.log(
-        `Row count mismatch: ${result.rows.length} vs ${expected.rows.length}`
+        `Row count mismatch: ${result.rows.length} vs ${expected.length}`
       );
       correct = false;
     } else {
-      let checkCols = [];
-      for (let col of expected.fields) {
-        if (col.name !== "sort_id") {
-          checkCols.push(col.name);
-        }
-      }
-      if (expected.rows[0]["sort_id"] == null) {
-        const expectedOrder = expected.rows.map((r) =>
-          _stringify(r, checkCols)
-        );
+      let checkCols = Object.keys(expected[0]).filter((x) => x !== "sort_id");
+      if (expected[0]["sort_id"] == null) {
+        const expectedOrder = expected.map((r) => _stringify(r, checkCols));
         const resultOrder = result.rows.map((r) => _stringify(r, checkCols));
         expectedOrder.sort();
         resultOrder.sort();
@@ -78,9 +73,9 @@ export default async function handler(req, res) {
       } else {
         for (let i = 0; i < result.rows.length && correct; i++) {
           for (let col of checkCols) {
-            if (String(result.rows[i][col]) !== String(expected.rows[i][col])) {
+            if (String(result.rows[i][col]) !== String(expected[i][col])) {
               console.log(
-                `mismatch at row ${i} col ${col}: ${result.rows[i][col]} vs ${expected.rows[i][col]}`
+                `mismatch at row ${i} col ${col}: ${result.rows[i][col]} vs ${expected[i][col]}`
               );
               correct = false;
               break;
